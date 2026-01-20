@@ -6,6 +6,7 @@ from enum import Enum
 class IntentType(str, Enum):
     """Types of intents the assistant can handle."""
 
+    ENTRY = "entry"
     GET_DUTIES = "get_duties"
     NEARBY_CNG = "nearby_cng"
     NEARBY_PETROL = "nearby_petrol"
@@ -16,6 +17,7 @@ class IntentType(str, Enum):
 class UIAction(str, Enum):
     """UI actions that Flutter app should perform."""
 
+    ENTRY = "entry"
     SHOW_DUTIES_LIST = "show_duties_list"
     SHOW_CNG_STATIONS = "show_cng_stations"
     SHOW_PETROL_STATIONS = "show_petrol_stations"
@@ -56,6 +58,7 @@ class AssistantRequest(BaseModel):
     current_location: Location
     session_id: Optional[str] = None  # For conversation context
     preferred_language: str = "hi"  # Default to Hindi
+    interaction_count: Optional[int] = None  # Track user interaction count
 
 
 class DutyInfo(BaseModel):
@@ -103,3 +106,4 @@ class AssistantResponse(BaseModel):
     data: Optional[dict] = None
     audio_cached: bool = False
     cache_key: Optional[str] = None
+    audio_url: Optional[str] = None  # Direct audio URL (for greeting)

@@ -27,6 +27,7 @@ from app.services import (
     get_tts_service,
     get_cache_service,
 )
+from app.constants import GREETING_AUDIO_MAP, DEFAULT_GREETING_TYPE
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,22 @@ async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse,
 
     # Generate session ID if not provided
     session_id = request.session_id or str(uuid.uuid4())
+
+    # Check for entry state (first interaction with empty text)
+    if (request.interaction_count is not None 
+        and request.text.strip() == ""):
+        greeting_url = GREETING_AUDIO_MAP.get(DEFAULT_GREETING_TYPE)
+        
+        return AssistantResponse(
+            session_id=session_id,
+            intent=IntentType.ENTRY,
+            ui_action=UIAction.ENTRY,
+            response_text="",
+            data=None,
+            audio_cached=False,
+            cache_key="",
+            audio_url=greeting_url
+        ), ""
 
     # Step 1: Classify intent and get response using Gemini
     intent_result = await gemini.classify_and_respond(
@@ -194,6 +211,11 @@ async def query_with_audio(request: AssistantRequest) -> StreamingResponse:
             # First, yield JSON metadata
             json_data = response.model_dump_json()
             yield json_data.encode() + b"\n"
+
+            # If audio_url is present (entry state), Flutter will fetch it directly
+            # Don't stream any audio bytes - Flutter handles the greeting URL
+            if response.audio_url:
+                return
 
             # Check cache first
             cached_audio = await cache.get(cache_key)

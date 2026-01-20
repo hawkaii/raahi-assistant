@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 
 # API configuration
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "http://34.124.221.83:8000"
 QUERY_WITH_AUDIO_ENDPOINT = f"{API_BASE_URL}/assistant/query-with-audio"
 
 # Default test data
