@@ -17,11 +17,21 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_SYSTEM_PYTHON=1
 
-# Copy dependency files
+# Copy dependency files first
 COPY pyproject.toml ./
 
-# Install dependencies using uv
-RUN uv pip install --system -e .
+# Install dependencies only (not editable install)
+RUN uv pip install --system --no-cache-dir \
+    fastapi>=0.109.0 \
+    uvicorn[standard]>=0.27.0 \
+    google-cloud-aiplatform>=1.38.0 \
+    google-cloud-texttospeech>=2.14.0 \
+    typesense>=0.21.0 \
+    pydantic>=2.5.0 \
+    pydantic-settings>=2.1.0 \
+    redis>=5.0.0 \
+    python-multipart>=0.0.6 \
+    httpx>=0.26.0
 
 # Copy application code
 COPY . .
