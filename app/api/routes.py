@@ -49,9 +49,9 @@ async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse,
     # Generate session ID if not provided
     session_id = request.session_id or str(uuid.uuid4())
 
-    # Check for entry state (first interaction with empty text)
+    # Check for entry state (either interaction_count present OR empty text)
     if (request.interaction_count is not None 
-        and request.text.strip() == ""):
+        or request.text.strip() == ""):
         greeting_url = GREETING_AUDIO_MAP.get(DEFAULT_GREETING_TYPE)
         
         return AssistantResponse(
