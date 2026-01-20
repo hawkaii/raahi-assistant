@@ -9,6 +9,7 @@ Architecture:
 
 import json
 import logging
+import re
 import uuid
 from typing import AsyncIterator
 
@@ -32,6 +33,61 @@ from app.constants import GREETING_AUDIO_MAP, DEFAULT_GREETING_TYPE
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
+
+
+def extract_city_names(text: str) -> list[str]:
+    """
+    Extract city names from text in the order they appear.
+    
+    This is a simple pattern-based extraction for common Indian city names.
+    Can be enhanced with NER (Named Entity Recognition) for better accuracy.
+    """
+    # Common Indian cities (can be expanded)
+    indian_cities = [
+        "mumbai", "delhi", "bangalore", "bengaluru", "hyderabad", "chennai", "kolkata",
+        "pune", "ahmedabad", "surat", "jaipur", "lucknow", "kanpur", "nagpur",
+        "indore", "thane", "bhopal", "visakhapatnam", "pimpri", "patna",
+        "vadodara", "ghaziabad", "ludhiana", "agra", "nashik", "faridabad",
+        "meerut", "rajkot", "kalyan", "vasai", "varanasi", "srinagar",
+        "aurangabad", "dhanbad", "amritsar", "navi mumbai", "allahabad", "prayagraj",
+        "ranchi", "howrah", "coimbatore", "jabalpur", "gwalior", "vijayawada",
+        "jodhpur", "madurai", "raipur", "kota", "chandigarh", "guwahati",
+        "solapur", "hubli", "mysore", "mysuru", "tiruchirappalli", "tiruppur",
+        "moradabad", "bareilly", "aligarh", "jalandhar", "bhubaneswar", "salem",
+        "warangal", "guntur", "bhiwandi", "saharanpur", "gorakhpur", "bikaner",
+        "amravati", "noida", "jamshedpur", "bhilai", "cuttack", "firozabad",
+        "kochi", "cochin", "nellore", "bhavnagar", "dehradun", "durgapur",
+        "asansol", "rourkela", "nanded", "kolhapur", "ajmer", "akola",
+        "gulbarga", "jamnagar", "ujjain", "loni", "siliguri", "jhansi",
+        "ulhasnagar", "jammu", "sangli", "mangalore", "erode", "belgaum",
+        "ambattur", "tirunelveli", "malegaon", "gaya", "thiruvananthapuram",
+        "udaipur", "maheshtala", "davanagere", "kozhikode", "calicut", "akola"
+    ]
+    
+    text_lower = text.lower()
+    found_cities = []
+    
+    # Find all city matches with their positions
+    city_matches = []
+    for city in indian_cities:
+        # Use word boundaries to match whole words
+        match = re.search(r'\b' + re.escape(city) + r'\b', text_lower)
+        if match:
+            # Store (position, city_name)
+            city_matches.append((match.start(), city.title()))
+    
+    # Sort by position in text (ascending order)
+    city_matches.sort(key=lambda x: x[0])
+    
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_cities = []
+    for _, city in city_matches:
+        if city.lower() not in seen:
+            seen.add(city.lower())
+            unique_cities.append(city)
+    
+    return unique_cities
 
 
 async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse, str]:
@@ -79,13 +135,19 @@ async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse,
     extracted_params = intent_result.data.get("extracted_params", {}) if intent_result.data else {}
 
     if intent_result.intent == IntentType.GET_DUTIES:
+        # Extract city names from the user's text
+        city_names = extract_city_names(request.text)
+        
         duties = await typesense.search_duties(
             from_city=extracted_params.get("from_city"),
             to_city=extracted_params.get("to_city"),
             route=extracted_params.get("route"),
             vehicle_type=request.driver_profile.vehicle_type,
         )
-        data = {"duties": [d.model_dump() for d in duties]}
+        data = {
+            "duties": [d.model_dump() for d in duties],
+            "city_names": city_names
+        }
 
     elif intent_result.intent == IntentType.NEARBY_CNG:
         stations = await typesense.search_nearby_fuel_stations(
@@ -115,9 +177,14 @@ async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse,
         }
         data = {"verification": verification_status}
 
-    # Step 3: Check if audio is cached
+    # Step 3: Check if audio is cached and determine audio_url
     cache_key = tts.get_cache_key(intent_result.response_text)
     audio_cached = await cache.exists(cache_key)
+    
+    # Set audio_url for GET_DUTIES intent
+    audio_url = None
+    if intent_result.intent == IntentType.GET_DUTIES:
+        audio_url = GREETING_AUDIO_MAP.get("duty_audio")
 
     return AssistantResponse(
         session_id=session_id,
@@ -127,6 +194,7 @@ async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse,
         data=data,
         audio_cached=audio_cached,
         cache_key=cache_key,
+        audio_url=audio_url,
     ), intent_result.response_text
 
 
