@@ -121,14 +121,71 @@ Response format:
 
 ## Setup
 
-### 1. Install Dependencies
+### Option 1: Docker (Recommended)
+
+The easiest way to run the application with all dependencies:
+
+#### 1. Configure Environment
+
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+```
+
+Required environment variables:
+- `GCP_PROJECT_ID`: Your Google Cloud project
+- `TYPESENSE_API_KEY`: Typesense API key (will be used by the container)
+- Optional: `GOOGLE_APPLICATION_CREDENTIALS`: Path to GCP service account JSON file
+
+#### 2. Start All Services
+
+```bash
+# Start all services (FastAPI, Redis, Typesense)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f raahi-assistant
+
+# Check service status
+docker-compose ps
+```
+
+#### 3. Setup Typesense Collections
+
+```bash
+# Run setup script inside the container
+docker-compose exec raahi-assistant python scripts/setup_typesense.py
+```
+
+#### 4. Access the API
+
+- API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+- Typesense: http://localhost:8108
+- Redis: localhost:6379
+
+#### Stop Services
+
+```bash
+# Stop all services
+docker-compose down
+
+# Stop and remove volumes (WARNING: deletes data)
+docker-compose down -v
+```
+
+### Option 2: Local Development
+
+For local development without Docker:
+
+#### 1. Install Dependencies
 
 ```bash
 cd raahi_assistant
 pip install -e .
 ```
 
-### 2. Configure Environment
+#### 2. Configure Environment
 
 ```bash
 cp .env.example .env
@@ -138,15 +195,27 @@ cp .env.example .env
 Required:
 - `GCP_PROJECT_ID`: Your Google Cloud project
 - `TYPESENSE_API_KEY`: Typesense API key
-- `REDIS_URL`: Redis connection URL
+- `REDIS_URL`: Redis connection URL (default: redis://localhost:6379)
 
-### 3. Setup Typesense Collections
+**Note**: You need to run Redis and Typesense separately:
+
+```bash
+# Run Redis (using Docker)
+docker run -d -p 6379:6379 redis:7-alpine
+
+# Run Typesense (using Docker)
+docker run -d -p 8108:8108 \
+  -e TYPESENSE_API_KEY=your-api-key \
+  typesense/typesense:26.0
+```
+
+#### 3. Setup Typesense Collections
 
 ```bash
 python scripts/setup_typesense.py
 ```
 
-### 4. Run the Server
+#### 4. Run the Server
 
 ```bash
 uvicorn app.main:app --reload

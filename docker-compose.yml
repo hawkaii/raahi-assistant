@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  # FastAPI Application
+  raahi-assistant:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: raahi-assistant
+    ports:
+      - "8000:8000"
+    environment:
+      # Google Cloud
+      - GCP_PROJECT_ID=cabswale-ai
+      - GCP_LOCATION=asia-south1
+
+      # Vertex AI / Gemini
+      - GEMINI_MODEL=gemini-2.5-flash
+
+      # TTS - Chirp 3 HD (Aoede voice)
+      - TTS_VOICE_NAME=hi-IN-Chirp3-HD-Aoede
+      - TTS_LANGUAGE_CODE=hi-IN
+
+      # Typesense
+      - TYPESENSE_HOST=typesense
+      - TYPESENSE_PORT=8108
+      - TYPESENSE_PROTOCOL=http
+      - TYPESENSE_API_KEY=your-typesense-api-key
+
+      # Typesense Collections
+      - DUTIES_COLLECTION=duties
+      - FUEL_STATIONS_COLLECTION=fuel_stations
+
+      # Redis for caching
+      - REDIS_URL=redis://redis:6379
+      - AUDIO_CACHE_TTL=604800
+
+      # API
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+    volumes:
+      # Mount Google Cloud credentials if using service account
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-./credentials.json}:/app/credentials.json:ro
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      typesense:
+        condition: service_healthy
+    networks:
+      - raahi-network
+    restart: unless-stopped
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: raahi-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - raahi-network
+    restart: unless-stopped
+
+  # Typesense for search
+  typesense:
+    image: typesense/typesense:26.0
+    container_name: raahi-typesense
+    ports:
+      - "8108:8108"
+    environment:
+      - TYPESENSE_DATA_DIR=/data
+      - TYPESENSE_API_KEY=${TYPESENSE_API_KEY}
+      - TYPESENSE_ENABLE_CORS=true
+    volumes:
+      - typesense-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8108/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - raahi-network
+    restart: unless-stopped
+
+networks:
+  raahi-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  typesense-data:
