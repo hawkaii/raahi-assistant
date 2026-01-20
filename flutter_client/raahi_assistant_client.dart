@@ -46,7 +46,7 @@ class AssistantRequest {
 }
 
 class DriverProfile {
-  final String driverId;
+  final String id;
   final String name;
   final String phone;
   final bool isVerified;
@@ -58,7 +58,7 @@ class DriverProfile {
   final bool insuranceVerified;
 
   DriverProfile({
-    required this.driverId,
+    required this.id,
     required this.name,
     required this.phone,
     this.isVerified = false,
@@ -71,7 +71,7 @@ class DriverProfile {
   });
 
   Map<String, dynamic> toJson() => {
-        'driver_id': driverId,
+        'id': id,
         'name': name,
         'phone': phone,
         'is_verified': isVerified,
@@ -313,7 +313,7 @@ class RaahiAssistantClient {
 ///   final audioPlayer = AudioPlayer();
 ///   
 ///   DriverProfile driverProfile = DriverProfile(
-///     driverId: 'driver123',
+///     id: 'driver123',
 ///     name: 'Rajesh Kumar',
 ///     phone: '+919876543210',
 ///   );

@@ -17,7 +17,7 @@ QUERY_WITH_AUDIO_ENDPOINT = f"{API_BASE_URL}/assistant/query-with-audio"
 DEFAULT_REQUEST = {
     "text": "Delhi se Mumbai ka duty chahiye",
     "driver_profile": {
-        "driver_id": "123",
+        "id": "123",
         "name": "Rajesh",
         "phone": "+919876543210",
         "is_verified": False,
@@ -190,9 +190,9 @@ Examples:
         help='Query text to send to the API'
     )
     parser.add_argument(
-        '--driver-id',
+        '--id',
         type=str,
-        default=DEFAULT_REQUEST['driver_profile']['driver_id'],
+        default=DEFAULT_REQUEST['driver_profile']['id'],
         help='Driver ID'
     )
     parser.add_argument(
@@ -232,7 +232,7 @@ Examples:
     request_data = {
         "text": args.text,
         "driver_profile": {
-            "driver_id": args.driver_id,
+            "id": args.id,
             "name": args.driver_name,
             "phone": "+919876543210",
             "is_verified": False,

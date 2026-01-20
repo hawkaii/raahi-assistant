@@ -38,7 +38,7 @@ class Location(BaseModel):
 class DriverProfile(BaseModel):
     """Driver profile information sent with each request."""
 
-    driver_id: str
+    id: str
     name: str
     phone: str
     is_verified: bool = False
