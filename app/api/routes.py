@@ -254,6 +254,10 @@ async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse,
     audio_url = None
     if intent_result.intent == IntentType.GET_DUTIES:
         audio_url = GREETING_AUDIO_MAP.get("duty_audio")
+    elif intent_result.intent == IntentType.CNG_PUMPS:
+        audio_url = GREETING_AUDIO_MAP.get("cng_pumps")
+    elif intent_result.intent == IntentType.PETROL_PUMPS:
+        audio_url = GREETING_AUDIO_MAP.get("petrol_pumps")
 
     return AssistantResponse(
         session_id=session_id,

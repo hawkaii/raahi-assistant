@@ -4,6 +4,8 @@
 GREETING_AUDIO_MAP = {
     "entry": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fgreeting.wav?alt=media&token=93970efd-eaf5-45bd-850a-ed9cdac4856b",
     "duty_audio": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fgreeting.wav?alt=media&token=93970efd-eaf5-45bd-850a-ed9cdac4856b",
+    "cng_pumps": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fgreeting.wav?alt=media&token=93970efd-eaf5-45bd-850a-ed9cdac4856b",
+    "petrol_pumps": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fgreeting.wav?alt=media&token=93970efd-eaf5-45bd-850a-ed9cdac4856b",
     # Future greetings can be added here:
     # "morning_greeting": "https://...",
     # "evening_greeting": "https://...",

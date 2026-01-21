@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 
 # API configuration
-API_BASE_URL = "http://34.124.221.83:8000"
+API_BASE_URL = "http://localhost:8000"
 QUERY_WITH_AUDIO_ENDPOINT = f"{API_BASE_URL}/assistant/query-with-audio"
 
 # Default test data
@@ -73,12 +73,14 @@ def test_query_with_audio(request_data=None, output_file="output.wav"):
         ]
         
         result = subprocess.run(curl_cmd, capture_output=True, text=True)
-        
+
         # Clean up temp request file
         Path(request_file).unlink()
-        
+
         if result.returncode != 0:
             print(f"   ✗ Error calling API: {result.stderr}")
+            print(f"   Return code: {result.returncode}")
+            print(f"   Stdout: {result.stdout}")
             return None, None
         
         print(f"   ✓ Response received")
@@ -110,10 +112,58 @@ def test_query_with_audio(request_data=None, output_file="output.wav"):
         print(f"   Response Text: {response.get('response_text')}")
         print(f"   Audio Cached: {response.get('audio_cached')}")
         print(f"   Cache Key: {response.get('cache_key')}")
+        print(f"   Audio URL: {response.get('audio_url')}")
         print(f"   Audio Data: {len(audio_data)} bytes")
         
+        # If GET_DUTIES intent, display query and counts
+        if response.get('intent') == 'get_duties' and response.get('data'):
+            data = response['data']
+            print(f"\n   📊 Duty Search Results:")
+            
+            # Display query metadata
+            query = data.get('query', {})
+            print(f"      Query:")
+            print(f"        • Pickup City: {query.get('pickup_city')}")
+            print(f"        • Drop City: {query.get('drop_city')}")
+            print(f"        • Used Geocoding: {query.get('used_geo')}")
+            
+            # Display counts
+            counts = data.get('counts', {})
+            print(f"      Counts:")
+            print(f"        • Trips: {counts.get('trips')}")
+            print(f"        • Leads: {counts.get('leads')}")
+            print(f"        • Total: {counts.get('total')}")
+            
+            # Display city names extracted
+            city_names = data.get('city_names', [])
+            print(f"      Extracted Cities: {', '.join(city_names) if city_names else 'None'}")
+            
+            # Show sample duties
+            duties = data.get('duties', [])
+            if duties:
+                print(f"\n   📋 Sample Duties (showing first 3):")
+                for i, duty in enumerate(duties[:3], 1):
+                    duty_type = duty.get('type', 'unknown').upper()
+                    pickup = duty.get('pickup_city', 'N/A')
+                    drop = duty.get('drop_city', 'N/A')
+                    status = duty.get('status', 'N/A')
+                    print(f"      {i}. [{duty_type}] {pickup} → {drop} (Status: {status})")
+                    if duty.get('type') == 'trip':
+                        trip_type = duty.get('trip_type', 'N/A')
+                        print(f"         Trip Type: {trip_type}")
+            else:
+                print(f"\n   ⚠️  No duties found")
+        
+        # Check if audio_url is provided (for entry state or GET_DUTIES)
+        if response.get('audio_url'):
+            print(f"\n   ℹ️  Audio URL provided (no streaming): {response.get('audio_url')}")
+            print(f"\n" + "=" * 60)
+            print("✓ Test completed successfully (Audio via URL)!")
+            print("=" * 60)
+            return response, None
+        
         if len(audio_data) == 0:
-            print(f"\n   ✗ No audio data received")
+            print(f"\n   ✗ No audio data received and no audio_url")
             return response, None
         
         # Step 3: Save MP3 first

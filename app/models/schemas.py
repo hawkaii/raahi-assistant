@@ -100,7 +100,6 @@ class AssistantResponse(BaseModel):
     """REST response with metadata (audio streamed separately via chunked transfer)."""
 
     session_id: str
-    success: bool = True
     intent: IntentType
     ui_action: UIAction
     response_text: str
