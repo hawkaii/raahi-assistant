@@ -31,7 +31,8 @@ RUN uv pip install --system --no-cache-dir \
     pydantic-settings>=2.1.0 \
     redis>=5.0.0 \
     python-multipart>=0.0.6 \
-    httpx>=0.26.0
+    httpx>=0.26.0 \
+    firebase-admin>=6.4.0
 
 # Copy application code
 COPY . .

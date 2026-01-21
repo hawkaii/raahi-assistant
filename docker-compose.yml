@@ -21,12 +21,18 @@ services:
       - TTS_VOICE_NAME=hi-IN-Chirp3-HD-Aoede
       - TTS_LANGUAGE_CODE=hi-IN
 
+      # Firebase
+      - FIREBASE_CREDENTIALS_PATH=/app/partnersdb-service-account.json
+      - ENABLE_ANALYTICS_LOGGING=true
+
       # API
       - API_HOST=0.0.0.0
       - API_PORT=8000
     volumes:
       # Mount Google Cloud credentials if using service account
       - ${GOOGLE_APPLICATION_CREDENTIALS:-./credentials.json}:/app/credentials.json:ro
+      # Mount Firebase credentials
+      - ${FIREBASE_CREDENTIALS:-./partnersdb-service-account.json}:/app/partnersdb-service-account.json:ro
     env_file:
       - .env
     restart: unless-stopped
