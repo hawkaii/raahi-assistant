@@ -113,17 +113,19 @@ class FirebaseService:
 
             # Write to Firestore (async, non-blocking)
             # Path: drivers/{driver_id}/raahiSearch/{auto_generated_id}
-            await (
+            update_time, doc_ref = await (
                 self._client.collection("drivers")
                 .document(driver_id)
                 .collection("raahiSearch")
                 .add(doc_data)
             )
 
+            # Log with the auto-generated document ID for Firebase verification
             logger.info(
                 f"Analytics logged for driver {driver_id}: "
                 f"{pickup_city or 'ALL'} → {drop_city or 'N/A'} "
-                f"({trips_count} trips, {leads_count} leads, geo={used_geo})"
+                f"({trips_count} trips, {leads_count} leads, geo={used_geo}) | "
+                f"Firestore Doc ID: {doc_ref.id} | Path: drivers/{driver_id}/raahiSearch/{doc_ref.id}"
             )
 
         except Exception as e:

@@ -39,61 +39,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
 
-def extract_city_names(text: str) -> list[str]:
-    """
-    Extract city names from text in the order they appear.
-    
-    This is a simple pattern-based extraction for common Indian city names.
-    Can be enhanced with NER (Named Entity Recognition) for better accuracy.
-    """
-    # Common Indian cities (can be expanded)
-    indian_cities = [
-        "mumbai", "delhi", "bangalore", "bengaluru", "hyderabad", "chennai", "kolkata",
-        "pune", "ahmedabad", "surat", "jaipur", "lucknow", "kanpur", "nagpur",
-        "indore", "thane", "bhopal", "visakhapatnam", "pimpri", "patna",
-        "vadodara", "ghaziabad", "ludhiana", "agra", "nashik", "faridabad",
-        "meerut", "rajkot", "kalyan", "vasai", "varanasi", "srinagar",
-        "aurangabad", "dhanbad", "amritsar", "navi mumbai", "allahabad", "prayagraj",
-        "ranchi", "howrah", "coimbatore", "jabalpur", "gwalior", "vijayawada",
-        "jodhpur", "madurai", "raipur", "kota", "chandigarh", "guwahati",
-        "solapur", "hubli", "mysore", "mysuru", "tiruchirappalli", "tiruppur",
-        "moradabad", "bareilly", "aligarh", "jalandhar", "bhubaneswar", "salem",
-        "warangal", "guntur", "bhiwandi", "saharanpur", "gorakhpur", "bikaner",
-        "amravati", "noida", "jamshedpur", "bhilai", "cuttack", "firozabad",
-        "kochi", "cochin", "nellore", "bhavnagar", "dehradun", "durgapur",
-        "asansol", "rourkela", "nanded", "kolhapur", "ajmer", "akola",
-        "gulbarga", "jamnagar", "ujjain", "loni", "siliguri", "jhansi",
-        "ulhasnagar", "jammu", "sangli", "mangalore", "erode", "belgaum",
-        "ambattur", "tirunelveli", "malegaon", "gaya", "thiruvananthapuram",
-        "udaipur", "maheshtala", "davanagere", "kozhikode", "calicut", "akola"
-    ]
-    
-    text_lower = text.lower()
-    found_cities = []
-    
-    # Find all city matches with their positions
-    city_matches = []
-    for city in indian_cities:
-        # Use word boundaries to match whole words
-        match = re.search(r'\b' + re.escape(city) + r'\b', text_lower)
-        if match:
-            # Store (position, city_name)
-            city_matches.append((match.start(), city.title()))
-    
-    # Sort by position in text (ascending order)
-    city_matches.sort(key=lambda x: x[0])
-    
-    # Remove duplicates while preserving order
-    seen = set()
-    unique_cities = []
-    for _, city in city_matches:
-        if city.lower() not in seen:
-            seen.add(city.lower())
-            unique_cities.append(city)
-    
-    return unique_cities
-
-
 async def _process_intent(
     request: AssistantRequest, 
     background_tasks: BackgroundTasks
@@ -146,9 +91,6 @@ async def _process_intent(
     extracted_params = intent_result.data.get("extracted_params", {}) if intent_result.data else {}
 
     if intent_result.intent == IntentType.GET_DUTIES:
-        # Extract city names from the user's text
-        city_names = extract_city_names(request.text)
-        
         # Extract pickup and drop cities from Gemini's response
         pickup_city = extracted_params.get("from_city")
         drop_city = extracted_params.get("to_city")
