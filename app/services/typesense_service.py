@@ -3,7 +3,7 @@ Typesense service for searching duties and fuel stations.
 """
 
 import logging
-from typing import Optional
+from typing import Optional, List
 
 import typesense
 
@@ -29,6 +29,8 @@ class TypesenseService:
         })
         self.duties_collection = settings.duties_collection
         self.fuel_stations_collection = settings.fuel_stations_collection
+        self.trips_collection = settings.trips_collection
+        self.leads_collection = settings.leads_collection
 
     async def search_duties(
         self,
@@ -100,6 +102,146 @@ class TypesenseService:
 
         except Exception as e:
             logger.error(f"Error searching duties: {e}")
+            return []
+
+    async def search_trips(
+        self,
+        pickup_city: Optional[str] = None,
+        drop_city: Optional[str] = None,
+        pickup_coordinates: Optional[List[float]] = None,
+        radius_km: float = 50.0,
+        limit: int = 50,
+    ) -> List[dict]:
+        """
+        Search for trips with text-based or geo-based search.
+        Filters out trips where customerIsOnboardedAsPartner=true.
+        
+        Args:
+            pickup_city: Pickup city name for text search
+            drop_city: Drop city name for text search
+            pickup_coordinates: [lat, lng] for geo search
+            radius_km: Search radius for geo search
+            limit: Maximum results to return
+            
+        Returns:
+            List of trip documents
+        """
+        try:
+            # Always filter out partner trips
+            filter_parts = ["customerIsOnboardedAsPartner:=false"]
+            
+            # Determine search strategy
+            if pickup_coordinates:
+                # Geo-based search
+                lat, lng = pickup_coordinates
+                search_params = {
+                    "q": "*",
+                    "query_by": "customerPickupLocationCity",
+                    "filter_by": f"customerPickupLocationCoordinates:({lat}, {lng}, {radius_km} km) && " + " && ".join(filter_parts),
+                    "sort_by": f"customerPickupLocationCoordinates({lat}, {lng}):asc",
+                    "per_page": limit,
+                }
+            else:
+                # Text-based search
+                query_parts = []
+                if pickup_city:
+                    query_parts.append(pickup_city)
+                if drop_city:
+                    query_parts.append(drop_city)
+                
+                query = " ".join(query_parts) if query_parts else "*"
+                
+                search_params = {
+                    "q": query,
+                    "query_by": "customerPickupLocationCity,customerDropLocationCity",
+                    "filter_by": " && ".join(filter_parts),
+                    "sort_by": "createdAt:desc",
+                    "per_page": limit,
+                }
+            
+            results = self.client.collections[self.trips_collection].documents.search(
+                search_params
+            )
+            
+            trips = []
+            for hit in results.get("hits", []):
+                trips.append(hit["document"])
+            
+            logger.info(f"Found {len(trips)} trips (pickup_city={pickup_city}, coordinates={pickup_coordinates})")
+            return trips
+            
+        except Exception as e:
+            logger.error(f"Error searching trips: {e}")
+            return []
+
+    async def search_leads(
+        self,
+        pickup_city: Optional[str] = None,
+        drop_city: Optional[str] = None,
+        pickup_coordinates: Optional[List[float]] = None,
+        radius_km: float = 50.0,
+        limit: int = 50,
+    ) -> List[dict]:
+        """
+        Search for leads with text-based or geo-based search.
+        Filters out leads where status=pending.
+        
+        Args:
+            pickup_city: Pickup city name for text search
+            drop_city: Drop city name for text search
+            pickup_coordinates: [lat, lng] for geo search
+            radius_km: Search radius for geo search
+            limit: Maximum results to return
+            
+        Returns:
+            List of lead documents
+        """
+        try:
+            # Always filter out pending leads
+            filter_parts = ["status:!=pending"]
+            
+            # Determine search strategy
+            if pickup_coordinates:
+                # Geo-based search using the location field
+                lat, lng = pickup_coordinates
+                search_params = {
+                    "q": "*",
+                    "query_by": "fromTxt",
+                    "filter_by": f"location:({lat}, {lng}, {radius_km} km) && " + " && ".join(filter_parts),
+                    "sort_by": f"location({lat}, {lng}):asc",
+                    "per_page": limit,
+                }
+            else:
+                # Text-based search
+                query_parts = []
+                if pickup_city:
+                    query_parts.append(pickup_city)
+                if drop_city:
+                    query_parts.append(drop_city)
+                
+                query = " ".join(query_parts) if query_parts else "*"
+                
+                search_params = {
+                    "q": query,
+                    "query_by": "fromTxt,toTxt",
+                    "filter_by": " && ".join(filter_parts),
+                    "sort_by": "createdAt:desc",
+                    "per_page": limit,
+                }
+            
+            results = self.client.collections[self.leads_collection].documents.search(
+                search_params
+            )
+            
+            leads = []
+            for hit in results.get("hits", []):
+                leads.append(hit["document"])
+            
+            logger.info(f"Found {len(leads)} leads (pickup_city={pickup_city}, coordinates={pickup_coordinates})")
+            return leads
+            
+        except Exception as e:
+            logger.error(f"Error searching leads: {e}")
             return []
 
     async def search_nearby_fuel_stations(

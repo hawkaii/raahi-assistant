@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     # Typesense Collections
     duties_collection: str = "duties"
     fuel_stations_collection: str = "fuel_stations"
+    trips_collection: str = "trips"
+    leads_collection: str = "bwi-cabswalle-leads"
+
+    # Google Maps API
+    google_maps_api_key: str
 
     # Redis for caching
     redis_url: str = "redis://localhost:6379"

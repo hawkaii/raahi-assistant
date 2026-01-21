@@ -7,6 +7,7 @@ Architecture:
 - POST /assistant/query-with-audio - Returns JSON + streams audio via chunked transfer encoding
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -28,6 +29,8 @@ from app.services import (
     get_tts_service,
     get_cache_service,
 )
+from app.services.geocoding_service import get_city_coordinates
+from app.utils.merge_utils import merge_and_deduplicate, combine_trips_and_leads
 from app.constants import GREETING_AUDIO_MAP, DEFAULT_GREETING_TYPE
 
 logger = logging.getLogger(__name__)
@@ -138,16 +141,82 @@ async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse,
         # Extract city names from the user's text
         city_names = extract_city_names(request.text)
         
-        duties = await typesense.search_duties(
-            from_city=extracted_params.get("from_city"),
-            to_city=extracted_params.get("to_city"),
-            route=extracted_params.get("route"),
-            vehicle_type=request.driver_profile.vehicle_type,
-        )
+        # Extract pickup and drop cities from Gemini's response
+        pickup_city = extracted_params.get("from_city")
+        drop_city = extracted_params.get("to_city")
+        
+        # Try to get coordinates for pickup city if available
+        pickup_coordinates = None
+        used_geo = False
+        if pickup_city:
+            pickup_coordinates = await get_city_coordinates(pickup_city)
+            if pickup_coordinates:
+                used_geo = True
+                logger.info(f"Using geo search for pickup city '{pickup_city}': {pickup_coordinates}")
+        
+        # Run 4 parallel searches: trips (text), trips (geo), leads (text), leads (geo)
+        search_tasks = []
+        
+        # Text-based searches (always run these)
+        search_tasks.append(typesense.search_trips(
+            pickup_city=pickup_city,
+            drop_city=drop_city,
+            limit=50
+        ))
+        search_tasks.append(typesense.search_leads(
+            pickup_city=pickup_city,
+            drop_city=drop_city,
+            limit=50
+        ))
+        
+        # Geo-based searches (only if we have coordinates)
+        if pickup_coordinates:
+            search_tasks.append(typesense.search_trips(
+                pickup_coordinates=pickup_coordinates,
+                radius_km=50.0,
+                limit=50
+            ))
+            search_tasks.append(typesense.search_leads(
+                pickup_coordinates=pickup_coordinates,
+                radius_km=50.0,
+                limit=50
+            ))
+        
+        # Execute all searches in parallel
+        search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
+        
+        # Handle exceptions
+        trips_text = search_results[0] if not isinstance(search_results[0], Exception) else []
+        leads_text = search_results[1] if not isinstance(search_results[1], Exception) else []
+        trips_geo = search_results[2] if len(search_results) > 2 and not isinstance(search_results[2], Exception) else []
+        leads_geo = search_results[3] if len(search_results) > 3 and not isinstance(search_results[3], Exception) else []
+        
+        # Merge and deduplicate trips
+        all_trips = merge_and_deduplicate([trips_text, trips_geo])
+        
+        # Merge and deduplicate leads
+        all_leads = merge_and_deduplicate([leads_text, leads_geo])
+        
+        # Combine trips and leads into normalized duties format
+        duties = combine_trips_and_leads(all_trips, all_leads)
+        
+        # Build response data
         data = {
-            "duties": [d.model_dump() for d in duties],
-            "city_names": city_names
+            "duties": duties,
+            "city_names": city_names,
+            "query": {
+                "pickup_city": pickup_city,
+                "drop_city": drop_city,
+                "used_geo": used_geo,
+            },
+            "counts": {
+                "trips": len(all_trips),
+                "leads": len(all_leads),
+                "total": len(duties)
+            }
         }
+        
+        logger.info(f"GET_DUTIES: Found {len(all_trips)} trips, {len(all_leads)} leads, {len(duties)} total duties")
 
     elif intent_result.intent == IntentType.CNG_PUMPS:
         stations = await typesense.search_nearby_fuel_stations(
