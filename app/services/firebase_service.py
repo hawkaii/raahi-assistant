@@ -7,12 +7,12 @@ matching the Node.js implementation structure.
 Firestore Path: drivers/{driver_id}/raahiSearch/{auto_id}
 """
 
+import asyncio
 import logging
 from typing import Optional
 from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
-from google.cloud.firestore_v1 import AsyncClient
 from config.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class FirebaseService:
     """Service for logging search analytics to Firestore."""
 
     def __init__(self):
-        self._client: Optional[AsyncClient] = None
+        self._client = None
         self._initialized = False
 
     async def initialize(self):
@@ -43,9 +43,10 @@ class FirebaseService:
             if not firebase_admin._apps:
                 firebase_admin.initialize_app(cred)
 
-            # Get async Firestore client
+            # Get synchronous Firestore client (Firebase Admin SDK's official approach)
+            # We'll use asyncio.to_thread() to run sync operations without blocking
+            self._client = firestore.client()
             self._initialized = True
-            self._client = firestore.AsyncClient()
 
             # Log Firebase initialization details (without exposing credentials)
             logger.info(
@@ -111,14 +112,19 @@ class FirebaseService:
                 "timestamp": datetime.utcnow(),
             }
 
-            # Write to Firestore (async, non-blocking)
+            # Write to Firestore using thread pool (non-blocking async wrapper around sync client)
             # Path: drivers/{driver_id}/raahiSearch/{auto_generated_id}
-            update_time, doc_ref = await (
-                self._client.collection("drivers")
-                .document(driver_id)
-                .collection("raahiSearch")
-                .add(doc_data)
-            )
+            def _write_to_firestore():
+                """Synchronous Firestore write operation."""
+                return (
+                    self._client.collection("drivers")
+                    .document(driver_id)
+                    .collection("raahiSearch")
+                    .add(doc_data)
+                )
+
+            # Run sync operation in thread pool to avoid blocking async event loop
+            update_time, doc_ref = await asyncio.to_thread(_write_to_firestore)
 
             # Log with the auto-generated document ID for Firebase verification
             logger.info(
