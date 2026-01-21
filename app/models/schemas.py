@@ -15,7 +15,7 @@ class IntentType(str, Enum):
 
 
 class UIAction(str, Enum):
-    """UI actions that Flutter app should perform."""
+    """UI actions that client application should perform."""
 
     ENTRY = "entry"
     SHOW_DUTIES_LIST = "show_duties_list"
@@ -51,7 +51,7 @@ class DriverProfile(BaseModel):
 
 
 class AssistantRequest(BaseModel):
-    """Request from Flutter app to the assistant."""
+    """Request from client application to the assistant."""
 
     text: str  # Transcribed text from speech_to_text
     driver_profile: DriverProfile

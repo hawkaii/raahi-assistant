@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import router
 from app.services import get_cache_service
+from app.services.firebase_service import get_firebase_service
 from config import get_settings
 
 # Configure logging
@@ -32,7 +33,13 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     logger.info("Starting Raahi Assistant API...")
+    
+    # Initialize Firebase on startup
+    firebase = get_firebase_service()
+    await firebase.initialize()
+    
     yield
+    
     # Cleanup
     logger.info("Shutting down Raahi Assistant API...")
     cache = get_cache_service()
@@ -50,7 +57,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS middleware for Flutter app
+    # CORS middleware for client applications
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],  # Configure appropriately for production

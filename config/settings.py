@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379"
     audio_cache_ttl: int = 86400 * 7  # 7 days
 
+    # Firebase (for analytics logging)
+    firebase_credentials_path: str = ""
+    enable_analytics_logging: bool = True
+
     # API
     api_host: str = "0.0.0.0"
     api_port: int = 8000

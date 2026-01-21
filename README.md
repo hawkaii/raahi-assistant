@@ -12,10 +12,16 @@ A Python backend for a voice-enabled AI assistant for truck drivers, featuring:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Flutter App                                  │
+│              Client Application (Mobile/Web)                     │
+│                                                                  │
+│  Any client technology can integrate via HTTP API:              │
+│  • Flutter/React Native (mobile apps)                           │
+│  • React/Vue/Angular (web apps)                                 │
+│  • Native iOS (Swift) / Android (Kotlin)                        │
+│                                                                  │
 │  ┌──────────────┐  ┌─────────────┐  ┌───────────────────────┐  │
-│  │ speech_to_   │  │   UI with   │  │     just_audio        │  │
-│  │    text      │──│  Actions    │──│   (audio player)      │  │
+│  │ Speech-to-   │  │   UI with   │  │   Audio Player        │  │
+│  │    Text      │──│  Actions    │──│   (any lib/SDK)       │  │
 │  └──────────────┘  └─────────────┘  └───────────────────────┘  │
 └────────────────────────────┬────────────────────────────────────┘
                              │ HTTP POST (text + context)
@@ -221,34 +227,140 @@ python scripts/setup_typesense.py
 uvicorn app.main:app --reload
 ```
 
-## Flutter Integration
+## Client Integration
 
-See `flutter_client/raahi_assistant_client.dart` for a complete client implementation.
+The Raahi AI Assistant API can be integrated with any client technology that supports HTTP requests and audio playback.
 
-Key points:
-1. Use `speech_to_text` package for voice input
-2. Send transcribed text + driver profile + location to API
-3. Parse JSON response for UI actions
-4. Stream audio response to `just_audio` player
+### Integration Steps
 
+#### 1. Capture User Voice Input
+Use any speech-to-text library appropriate for your platform:
+- **Mobile (Flutter)**: `speech_to_text` package
+- **Mobile (React Native)**: `@react-native-voice/voice` or `expo-speech`
+- **iOS Native**: `Speech` framework (`SFSpeechRecognizer`)
+- **Android Native**: `SpeechRecognizer` API
+- **Web**: Web Speech API (`SpeechRecognition`)
+
+#### 2. Send Request to API
+Make HTTP POST request to `/assistant/query` or `/assistant/query-with-audio`:
+
+```json
+{
+  "text": "Delhi se Mumbai ka duty chahiye",
+  "driver_profile": {
+    "id": "123",
+    "name": "Rajesh",
+    "phone": "+919876543210",
+    "is_verified": false,
+    "vehicle_type": "Container"
+  },
+  "current_location": {
+    "latitude": 28.6139,
+    "longitude": 77.2090
+  }
+}
+```
+
+#### 3. Parse Response for UI Actions
+The API returns a `ui_action` field indicating what the client should display:
+- `show_duties_list` → Navigate to duties/trips list screen
+- `show_cng_stations` → Show CNG pump map/list
+- `show_petrol_stations` → Show petrol pump map/list
+- `show_verification_checklist` → Open profile verification flow
+- `none` → Just display text response
+
+#### 4. Play Audio Response
+
+**Option A: Using `/query-with-audio` (Recommended)**
+- Receives JSON metadata on first line, then streamed MP3 audio
+- Parse first line for UI action
+- Pipe remaining bytes to audio player
+
+**Option B: Using `/query` + `/audio/{cache_key}`**
+- Get JSON response with `cache_key`
+- Fetch audio separately if `audio_cached` is true
+- More control over audio playback timing
+
+### Example Implementations
+
+#### Flutter Example
 ```dart
-// Example usage
-final client = RaahiAssistantClient(baseUrl: 'http://your-api:8000');
+import 'package:http/http.dart' as http;
+import 'package:just_audio/just_audio.dart';
 
-final request = AssistantRequest(
-  text: transcribedText,
-  driverProfile: driverProfile,
-  currentLocation: currentLocation,
+// Send request
+final response = await http.post(
+  Uri.parse('$baseUrl/assistant/query'),
+  body: jsonEncode(request),
 );
 
-final (response, audioStream) = await client.queryWithAudio(request);
+final data = jsonDecode(response.body);
 
 // Handle UI action
-handleUIAction(response.uiAction, response.data);
+if (data['ui_action'] == 'show_duties_list') {
+  Navigator.push(context, DutiesListScreen(data['data']));
+}
+
+// Play audio if cached
+if (data['audio_cached']) {
+  await audioPlayer.setUrl('$baseUrl/assistant/audio/${data['cache_key']}');
+  audioPlayer.play();
+}
+```
+
+#### React Native Example
+```javascript
+import axios from 'axios';
+import Sound from 'react-native-sound';
+
+// Send request
+const { data } = await axios.post(`${baseUrl}/assistant/query`, request);
+
+// Handle UI action
+if (data.ui_action === 'show_duties_list') {
+  navigation.navigate('DutiesList', { data: data.data });
+}
 
 // Play audio
-await playAudioFromStream(audioStream);
+if (data.audio_cached) {
+  const sound = new Sound(`${baseUrl}/assistant/audio/${data.cache_key}`);
+  sound.play();
+}
 ```
+
+#### Native iOS (Swift) Example
+```swift
+import AVFoundation
+
+// Send request
+let task = URLSession.shared.dataTask(with: request) { data, response, error in
+    let json = try JSONDecoder().decode(AssistantResponse.self, from: data)
+    
+    // Handle UI action
+    if json.uiAction == "show_duties_list" {
+        DispatchQueue.main.async {
+            self.showDutiesList(json.data)
+        }
+    }
+    
+    // Play audio
+    if let cacheKey = json.cacheKey {
+        let audioURL = URL(string: "\(baseURL)/assistant/audio/\(cacheKey)")!
+        let player = AVPlayer(url: audioURL)
+        player.play()
+    }
+}
+task.resume()
+```
+
+### Key Integration Points
+
+1. **Speech Input**: Use platform-appropriate SDK for voice recognition
+2. **HTTP Client**: Standard REST API calls (POST with JSON body)
+3. **UI Actions**: Parse `ui_action` field to determine screen navigation
+4. **Audio Playback**: Stream or fetch MP3 audio from response
+5. **Location**: Send current GPS coordinates for geo-based queries (fuel stations)
+6. **Profile Context**: Include driver profile for personalized responses
 
 ## Audio Caching
 
@@ -284,8 +396,6 @@ raahi_assistant/
 │   └── settings.py            # Configuration
 ├── scripts/
 │   └── setup_typesense.py     # Collection setup
-├── flutter_client/
-│   └── raahi_assistant_client.dart
 ├── pyproject.toml
 └── .env.example
 ```

@@ -14,7 +14,7 @@ import re
 import uuid
 from typing import AsyncIterator
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Response, BackgroundTasks
 from fastapi.responses import StreamingResponse
 
 from app.models import (
@@ -30,6 +30,7 @@ from app.services import (
     get_cache_service,
 )
 from app.services.geocoding_service import get_city_coordinates
+from app.services.firebase_service import get_firebase_service
 from app.utils.merge_utils import merge_and_deduplicate, combine_trips_and_leads, normalize_trip_to_duty, normalize_lead_to_duty
 from app.constants import GREETING_AUDIO_MAP, DEFAULT_GREETING_TYPE
 
@@ -93,9 +94,16 @@ def extract_city_names(text: str) -> list[str]:
     return unique_cities
 
 
-async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse, str]:
+async def _process_intent(
+    request: AssistantRequest, 
+    background_tasks: BackgroundTasks
+) -> tuple[AssistantResponse, str]:
     """
     Process user request: classify intent, fetch data, generate response.
+    
+    Args:
+        request: Assistant request with user text and profile
+        background_tasks: FastAPI background tasks for async Firebase logging
     
     Returns:
         Tuple of (AssistantResponse, response_text_for_tts)
@@ -209,17 +217,24 @@ async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse,
             "leads": len(all_leads),
         }
 
-        # Normalize trips and leads separately
-        normalized_trips = [normalize_trip_to_duty(trip) for trip in all_trips]
-        normalized_leads = [normalize_lead_to_duty(lead) for lead in all_leads]
-
-        # Data contains separated normalized trips and leads
+        # Return raw trips and leads without normalization
         data = {
-            "trips": normalized_trips,
-            "leads": normalized_leads
+            "trips": all_trips,
+            "leads": all_leads
         }
         
         logger.info(f"GET_DUTIES: Found {len(all_trips)} trips, {len(all_leads)} leads")
+        
+        # Log search analytics to Firebase (background task - async, non-blocking)
+        background_tasks.add_task(
+            get_firebase_service().log_search,
+            driver_id=request.driver_profile.id,
+            pickup_city=pickup_city,
+            drop_city=drop_city,
+            used_geo=used_geo,
+            trips_count=len(all_trips),
+            leads_count=len(all_leads)
+        )
 
     elif intent_result.intent == IntentType.CNG_PUMPS:
         stations = await typesense.search_nearby_fuel_stations(
@@ -284,13 +299,16 @@ async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse,
 
 
 @router.post("/query", response_model=AssistantResponse)
-async def query_assistant(request: AssistantRequest) -> AssistantResponse:
+async def query_assistant(
+    request: AssistantRequest,
+    background_tasks: BackgroundTasks
+) -> AssistantResponse:
     """
     Process a text query from the user.
     
     Returns JSON with:
     - intent classification
-    - UI action for Flutter to perform
+    - UI action for client application to perform
     - relevant data (duties, stations, verification info)
     - cache_key to fetch audio separately
     
@@ -300,7 +318,7 @@ async def query_assistant(request: AssistantRequest) -> AssistantResponse:
     3. Then stream audio separately via /audio/{cache_key}
     """
     try:
-        response, _ = await _process_intent(request)
+        response, _ = await _process_intent(request, background_tasks)
         return response
     except Exception as e:
         logger.error(f"Error processing query: {e}")
@@ -337,7 +355,10 @@ async def get_audio(cache_key: str) -> StreamingResponse:
 
 
 @router.post("/query-with-audio")
-async def query_with_audio(request: AssistantRequest) -> StreamingResponse:
+async def query_with_audio(
+    request: AssistantRequest,
+    background_tasks: BackgroundTasks
+) -> StreamingResponse:
     """
     Process query and return JSON metadata + streamed audio.
     
@@ -349,12 +370,12 @@ async def query_with_audio(request: AssistantRequest) -> StreamingResponse:
     - REST-like JSON response with all metadata
     - Chunked audio streaming for low latency playback
     
-    Flutter client should:
+    Client application should:
     1. Read first line as JSON, parse it for UI actions
     2. Pipe remaining bytes to audio player
     """
     try:
-        response, response_text = await _process_intent(request)
+        response, response_text = await _process_intent(request, background_tasks)
         
         tts = get_tts_service()
         cache = get_cache_service()
@@ -365,8 +386,8 @@ async def query_with_audio(request: AssistantRequest) -> StreamingResponse:
             json_data = response.model_dump_json()
             yield json_data.encode() + b"\n"
 
-            # If audio_url is present (entry state), Flutter will fetch it directly
-            # Don't stream any audio bytes - Flutter handles the greeting URL
+            # If audio_url is present (entry state), client application will fetch it directly
+            # Don't stream any audio bytes - client handles the greeting URL
             if response.audio_url:
                 return
 
