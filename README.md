@@ -55,7 +55,7 @@ Search for available trips/cargo between cities.
 
 ### 2. Nearby CNG/Petrol Pumps
 Find fuel stations near current location using geo-search.
-- Intent: `nearby_cng` or `nearby_petrol`
+- Intent: `cng_pumps` or `petrol_pumps`
 - UI Action: `show_cng_stations` or `show_petrol_stations`
 - Example: "Paas mein CNG pump kahan hai?"
 

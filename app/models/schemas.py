@@ -8,8 +8,8 @@ class IntentType(str, Enum):
 
     ENTRY = "entry"
     GET_DUTIES = "get_duties"
-    NEARBY_CNG = "nearby_cng"
-    NEARBY_PETROL = "nearby_petrol"
+    CNG_PUMPS = "cng_pumps"
+    PETROL_PUMPS = "petrol_pumps"
     PROFILE_VERIFICATION = "profile_verification"
     GENERIC = "generic"
 

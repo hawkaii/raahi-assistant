@@ -149,14 +149,14 @@ async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse,
             "city_names": city_names
         }
 
-    elif intent_result.intent == IntentType.NEARBY_CNG:
+    elif intent_result.intent == IntentType.CNG_PUMPS:
         stations = await typesense.search_nearby_fuel_stations(
             location=request.current_location,
             fuel_type="cng",
         )
         data = {"stations": [s.model_dump() for s in stations]}
 
-    elif intent_result.intent == IntentType.NEARBY_PETROL:
+    elif intent_result.intent == IntentType.PETROL_PUMPS:
         stations = await typesense.search_nearby_fuel_stations(
             location=request.current_location,
             fuel_type="petrol",

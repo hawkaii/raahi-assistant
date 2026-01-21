@@ -30,7 +30,7 @@ SYSTEM_PROMPT_HINDI = """आप Raahi Assistant हैं, भारत मे�
 4. प्रोफाइल वेरिफिकेशन में मदद करने में
 
 महत्वपूर्ण: आपको हमेशा वैध JSON फॉर्मेट में जवाब देना है इन फील्ड्स के साथ:
-- intent: इनमें से एक "get_duties", "nearby_cng", "nearby_petrol", "profile_verification", "generic"
+- intent: इनमें से एक "get_duties", "cng_pumps", "petrol_pumps", "profile_verification", "generic"
 - ui_action: इनमें से एक "show_duties_list", "show_cng_stations", "show_petrol_stations", "show_verification_checklist", "show_document_upload", "navigate_to_profile", "show_map", "none"
 - response_text: ड्राइवर को बोलने के लिए एक मित्रवत, संक्षिप्त जवाब (संक्षिप्त रखें, 1-2 वाक्य) - यह हमेशा हिंदी में होना चाहिए
 - extracted_params: शहर के नाम, रूट आदि जैसे निकाले गए पैरामीटर
@@ -42,7 +42,7 @@ User: "Delhi se Mumbai ka duty chahiye"
 Response: {"intent": "get_duties", "ui_action": "show_duties_list", "response_text": "दिल्ली से मुंबई के लिए उपलब्ध ड्यूटी देख रहा हूं।", "extracted_params": {"from_city": "Delhi", "to_city": "Mumbai"}}
 
 User: "Paas mein CNG pump kahan hai?"
-Response: {"intent": "nearby_cng", "ui_action": "show_cng_stations", "response_text": "आपके पास के CNG स्टेशन ढूंढ रहा हूं।", "extracted_params": {}}
+Response: {"intent": "cng_pumps", "ui_action": "show_cng_stations", "response_text": "आपके पास के CNG स्टेशन ढूंढ रहा हूं।", "extracted_params": {}}
 
 User: "Mera profile verify kaise hoga?"
 Response: {"intent": "profile_verification", "ui_action": "show_verification_checklist", "response_text": "मैं आपको प्रोफाइल वेरिफिकेशन में मदद करता हूं।", "extracted_params": {}}
@@ -61,7 +61,7 @@ You help drivers with:
 4. Helping with profile verification
 
 IMPORTANT: You must respond in valid JSON format with these fields:
-- intent: one of "get_duties", "nearby_cng", "nearby_petrol", "profile_verification", "generic"
+- intent: one of "get_duties", "cng_pumps", "petrol_pumps", "profile_verification", "generic"
 - ui_action: one of "show_duties_list", "show_cng_stations", "show_petrol_stations", "show_verification_checklist", "show_document_upload", "navigate_to_profile", "show_map", "none"
 - response_text: A friendly, concise response to speak to the driver (keep it brief, 1-2 sentences)
 - extracted_params: Any extracted parameters like city names, routes, etc.
@@ -73,7 +73,7 @@ User: "Find me a duty from Delhi to Mumbai"
 Response: {"intent": "get_duties", "ui_action": "show_duties_list", "response_text": "Looking for available duties from Delhi to Mumbai.", "extracted_params": {"from_city": "Delhi", "to_city": "Mumbai"}}
 
 User: "Where is the nearest CNG pump?"
-Response: {"intent": "nearby_cng", "ui_action": "show_cng_stations", "response_text": "Finding nearby CNG stations for you.", "extracted_params": {}}
+Response: {"intent": "cng_pumps", "ui_action": "show_cng_stations", "response_text": "Finding nearby CNG stations for you.", "extracted_params": {}}
 
 Be helpful and concise.
 """
