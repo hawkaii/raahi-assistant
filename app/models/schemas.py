@@ -100,9 +100,12 @@ class AssistantResponse(BaseModel):
     """REST response with metadata (audio streamed separately via chunked transfer)."""
 
     session_id: str
+    success: bool = True  # Always true for successful 200 responses
     intent: IntentType
     ui_action: UIAction
     response_text: str
+    query: Optional[dict] = None  # Query info (for GET_DUTIES)
+    counts: Optional[dict] = None  # Counts info (for GET_DUTIES)
     data: Optional[dict] = None
     audio_cached: bool = False
     cache_key: Optional[str] = None

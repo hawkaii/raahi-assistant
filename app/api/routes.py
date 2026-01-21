@@ -30,7 +30,7 @@ from app.services import (
     get_cache_service,
 )
 from app.services.geocoding_service import get_city_coordinates
-from app.utils.merge_utils import merge_and_deduplicate, combine_trips_and_leads
+from app.utils.merge_utils import merge_and_deduplicate, combine_trips_and_leads, normalize_trip_to_duty, normalize_lead_to_duty
 from app.constants import GREETING_AUDIO_MAP, DEFAULT_GREETING_TYPE
 
 logger = logging.getLogger(__name__)
@@ -197,26 +197,29 @@ async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse,
         # Merge and deduplicate leads
         all_leads = merge_and_deduplicate([leads_text, leads_geo])
         
-        # Combine trips and leads into normalized duties format
-        duties = combine_trips_and_leads(all_trips, all_leads)
-        
-        # Build response data
+        # Extract query and counts to root level (for restructured response)
+        query_info = {
+            "pickup_city": pickup_city,
+            "drop_city": drop_city,
+            "used_geo": used_geo,
+        }
+
+        counts_info = {
+            "trips": len(all_trips),
+            "leads": len(all_leads),
+        }
+
+        # Normalize trips and leads separately
+        normalized_trips = [normalize_trip_to_duty(trip) for trip in all_trips]
+        normalized_leads = [normalize_lead_to_duty(lead) for lead in all_leads]
+
+        # Data contains separated normalized trips and leads
         data = {
-            "duties": duties,
-            "city_names": city_names,
-            "query": {
-                "pickup_city": pickup_city,
-                "drop_city": drop_city,
-                "used_geo": used_geo,
-            },
-            "counts": {
-                "trips": len(all_trips),
-                "leads": len(all_leads),
-                "total": len(duties)
-            }
+            "trips": normalized_trips,
+            "leads": normalized_leads
         }
         
-        logger.info(f"GET_DUTIES: Found {len(all_trips)} trips, {len(all_leads)} leads, {len(duties)} total duties")
+        logger.info(f"GET_DUTIES: Found {len(all_trips)} trips, {len(all_leads)} leads")
 
     elif intent_result.intent == IntentType.CNG_PUMPS:
         stations = await typesense.search_nearby_fuel_stations(
@@ -259,16 +262,25 @@ async def _process_intent(request: AssistantRequest) -> tuple[AssistantResponse,
     elif intent_result.intent == IntentType.PETROL_PUMPS:
         audio_url = GREETING_AUDIO_MAP.get("petrol_pumps")
 
-    return AssistantResponse(
-        session_id=session_id,
-        intent=intent_result.intent,
-        ui_action=intent_result.ui_action,
-        response_text=intent_result.response_text,
-        data=data,
-        audio_cached=audio_cached,
-        cache_key=cache_key,
-        audio_url=audio_url,
-    ), intent_result.response_text
+    # Build response with conditional query/counts for GET_DUTIES
+    response_kwargs = {
+        "session_id": session_id,
+        "success": True,
+        "intent": intent_result.intent,
+        "ui_action": intent_result.ui_action,
+        "response_text": intent_result.response_text,
+        "data": data,
+        "audio_cached": audio_cached,
+        "cache_key": cache_key,
+        "audio_url": audio_url,
+    }
+
+    # Add query and counts for GET_DUTIES intent
+    if intent_result.intent == IntentType.GET_DUTIES:
+        response_kwargs["query"] = query_info
+        response_kwargs["counts"] = counts_info
+
+    return AssistantResponse(**response_kwargs), intent_result.response_text
 
 
 @router.post("/query", response_model=AssistantResponse)
