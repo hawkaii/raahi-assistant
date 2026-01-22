@@ -270,6 +270,9 @@ async def _process_intent(
     elif intent_result.intent == IntentType.POLICE_STATION:
         data = {"stations": []}
 
+    elif intent_result.intent == IntentType.END:
+        data = {}
+
     # Step 3: Check if audio is cached and determine audio_url
     cache_key = tts.get_cache_key(intent_result.response_text)
     audio_cached = await cache.exists(cache_key)

@@ -19,6 +19,7 @@ class IntentType(str, Enum):
     CAR_REPAIR = "car_repair"
     HOSPITAL = "hospital"
     POLICE_STATION = "police_station"
+    END = "end"
     GENERIC = "generic"
 
 
@@ -39,6 +40,7 @@ class UIAction(str, Enum):
     SHOW_HOSPITAL = "show_hospital"
     SHOW_POLICE_STATION = "show_police_station"
     SHOW_MAP = "show_map"
+    SHOW_END = "show_end"
     NONE = "none"
 
 
