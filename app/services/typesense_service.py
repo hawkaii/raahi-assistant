@@ -142,18 +142,21 @@ class TypesenseService:
                     "per_page": limit,
                 }
             else:
-                # Text-based search
-                query_parts = []
-                if pickup_city:
-                    query_parts.append(pickup_city)
-                if drop_city:
-                    query_parts.append(drop_city)
-                
-                query = " ".join(query_parts) if query_parts else "*"
+                # Text-based search with strict directional filtering
+                # Add city filters for strict direction matching
+                if pickup_city and drop_city:
+                    # Strict direction: pickup=Mumbai AND drop=Pune
+                    filter_parts.append(f"customerPickupLocationCity:={pickup_city}")
+                    filter_parts.append(f"customerDropLocationCity:={drop_city}")
+                elif pickup_city:
+                    # Only pickup specified
+                    filter_parts.append(f"customerPickupLocationCity:={pickup_city}")
+                elif drop_city:
+                    # Only drop specified
+                    filter_parts.append(f"customerDropLocationCity:={drop_city}")
                 
                 search_params = {
-                    "q": query,
-                    "query_by": "customerPickupLocationCity,customerDropLocationCity",
+                    "q": "*",  # Wildcard query since we're using filters
                     "filter_by": " && ".join(filter_parts),
                     "sort_by": "createdAt:desc",
                     "per_page": limit,
@@ -212,18 +215,21 @@ class TypesenseService:
                     "per_page": limit,
                 }
             else:
-                # Text-based search
-                query_parts = []
-                if pickup_city:
-                    query_parts.append(pickup_city)
-                if drop_city:
-                    query_parts.append(drop_city)
-                
-                query = " ".join(query_parts) if query_parts else "*"
+                # Text-based search with strict directional filtering
+                # Add city filters for strict direction matching
+                if pickup_city and drop_city:
+                    # Strict direction: from=Mumbai AND to=Pune
+                    filter_parts.append(f"fromTxt:={pickup_city}")
+                    filter_parts.append(f"toTxt:={drop_city}")
+                elif pickup_city:
+                    # Only pickup specified
+                    filter_parts.append(f"fromTxt:={pickup_city}")
+                elif drop_city:
+                    # Only drop specified
+                    filter_parts.append(f"toTxt:={drop_city}")
                 
                 search_params = {
-                    "q": query,
-                    "query_by": "fromTxt,toTxt",
+                    "q": "*",  # Wildcard query since we're using filters
                     "filter_by": " && ".join(filter_parts),
                     "sort_by": "createdAt:desc",
                     "per_page": limit,
