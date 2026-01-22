@@ -59,6 +59,7 @@ class AssistantRequest(BaseModel):
     session_id: Optional[str] = None  # For conversation context
     preferred_language: str = "hi"  # Default to Hindi
     interaction_count: Optional[int] = None  # Track user interaction count
+    is_home: bool = True
 
 
 class DutyInfo(BaseModel):

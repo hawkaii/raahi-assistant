@@ -21,7 +21,7 @@ class AudioConfigService:
     def __init__(self, config_path: str = "config/audio_urls.json"):
         """
         Initialize audio config service.
-        
+
         Args:
             config_path: Path to JSON configuration file
         """
@@ -40,18 +40,18 @@ class AudioConfigService:
                 self._config = {}
                 return
 
-            with open(self._config_path, 'r', encoding='utf-8') as f:
+            with open(self._config_path, "r", encoding="utf-8") as f:
                 self._config = json.load(f)
-            
+
             logger.info(
                 f"Loaded audio configuration from {self._config_path}: "
                 f"{len(self._config)} intent mappings"
             )
-            
+
             # Log which intents have URLs vs TTS generation
             has_url = [k for k, v in self._config.items() if v is not None]
             will_generate_tts = [k for k, v in self._config.items() if v is None]
-            
+
             if has_url:
                 logger.info(f"Intents with audio URLs: {', '.join(has_url)}")
             if will_generate_tts:
@@ -70,28 +70,45 @@ class AudioConfigService:
             )
             self._config = {}
 
-    def get_url(self, intent: IntentType, interaction_count: Optional[int] = None) -> Optional[str]:
+    def get_url(
+        self, intent: IntentType, interaction_count: Optional[int] = None, is_home: bool = False
+    ) -> Optional[str]:
         """
-        Get audio URL for a specific intent, with interaction count awareness.
-        
-        For intents with short versions (e.g., 'entry' and 'entry_short'):
-        - If interaction_count >= 5 and a '_short' version exists, return the short version
-        - Otherwise return the regular version
-        
+        Get audio URL for a specific intent, with interaction count and home location awareness.
+
+        Priority order:
+        1. If ENTRY intent and is_home=False, return 'entry_2' (overrides interaction_count)
+        2. If interaction_count >= 5 and a '_short' version exists, return the short version
+        3. Otherwise return the regular version
+
         Args:
             intent: The intent type to get audio URL for
             interaction_count: Number of user interactions (optional)
-            
+            is_home: Whether the user is at home location (optional)
+
         Returns:
             Audio URL string if configured, None if should generate TTS
         """
         intent_key = intent.value
-        
+
+        # Special handling for ENTRY intent when user is at home
+        if intent == IntentType.ENTRY and not is_home:
+            home_key = "entry_2"
+            home_url = self._config.get(home_key)
+
+            if home_url is not None:
+                logger.debug(f"Using home audio for ENTRY (is_home=True)")
+                return home_url
+            else:
+                logger.debug(
+                    f"Home audio 'entry_2' not configured, falling back to regular entry logic"
+                )
+
         # If interaction_count >= 5, try to use the short version first
         if interaction_count is not None and interaction_count >= 5:
             short_key = f"{intent_key}_short"
             short_url = self._config.get(short_key)
-            
+
             if short_url is not None:
                 logger.debug(
                     f"Using short audio for intent '{intent_key}' "
@@ -100,25 +117,24 @@ class AudioConfigService:
                 return short_url
             else:
                 logger.debug(
-                    f"Short audio not configured for '{intent_key}', "
-                    f"using regular version"
+                    f"Short audio not configured for '{intent_key}', using regular version"
                 )
-        
+
         # Fall back to regular version
         url = self._config.get(intent_key)
-        
+
         if url is None:
             logger.debug(f"No audio URL for intent '{intent_key}', will generate TTS")
-        
+
         return url
 
     def has_url(self, intent: IntentType) -> bool:
         """
         Check if an intent has a configured audio URL.
-        
+
         Args:
             intent: The intent type to check
-            
+
         Returns:
             True if intent has a non-null URL configured
         """
@@ -127,7 +143,7 @@ class AudioConfigService:
     def reload(self) -> None:
         """
         Manually reload configuration from file.
-        
+
         Note: With uvicorn --reload, this is called automatically
         when the JSON file changes (server restarts).
         """
@@ -142,7 +158,7 @@ _audio_config_service: Optional[AudioConfigService] = None
 def get_audio_config_service() -> AudioConfigService:
     """
     Get or create the audio config service singleton.
-    
+
     Returns:
         AudioConfigService instance
     """

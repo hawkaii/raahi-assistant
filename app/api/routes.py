@@ -68,7 +68,11 @@ async def _process_intent(
 
     # Check for entry state (either interaction_count present OR empty text)
     if request.text.strip() == "":
-        greeting_url = audio_config.get_url(IntentType.ENTRY, request.interaction_count)
+        greeting_url = audio_config.get_url(
+            IntentType.ENTRY, 
+            request.interaction_count,
+            request.is_home
+        )
 
         return AssistantResponse(
             session_id=session_id,
@@ -216,9 +220,13 @@ async def _process_intent(
     # Step 3: Check if audio is cached and determine audio_url
     cache_key = tts.get_cache_key(intent_result.response_text)
     audio_cached = await cache.exists(cache_key)
-
-    # Get audio URL from config based on intent type and interaction count
-    audio_url = audio_config.get_url(intent_result.intent, request.interaction_count)
+    
+    # Get audio URL from config based on intent type, interaction count, and home location
+    audio_url = audio_config.get_url(
+        intent_result.intent, 
+        request.interaction_count,
+        request.is_home
+    )
 
     # Build response with conditional query/counts for GET_DUTIES
     response_kwargs = {
