@@ -5,7 +5,6 @@ A voice-enabled AI assistant for truck drivers with:
 - Intent classification using Vertex AI Gemini
 - Duty/trip search using Typesense
 - Nearby fuel station search (geo-based)
-- Profile verification assistance
 - TTS with Google Cloud Chirp 3 HD (Aoede voice)
 - Audio caching with Redis
 """

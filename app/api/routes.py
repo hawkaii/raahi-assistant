@@ -270,20 +270,6 @@ async def _process_intent(
     elif intent_result.intent == IntentType.POLICE_STATION:
         data = {"stations": []}
 
-    elif intent_result.intent == IntentType.PROFILE_VERIFICATION:
-        # Build verification checklist from driver profile
-        profile = request.driver_profile
-        verification_status = {
-            "is_verified": profile.is_verified,
-            "checklist": [
-                {"item": "License", "verified": profile.license_verified},
-                {"item": "RC (Registration Certificate)", "verified": profile.rc_verified},
-                {"item": "Insurance", "verified": profile.insurance_verified},
-            ],
-            "pending_documents": profile.documents_pending,
-        }
-        data = {"verification": verification_status}
-
     # Step 3: Check if audio is cached and determine audio_url
     cache_key = tts.get_cache_key(intent_result.response_text)
     audio_cached = await cache.exists(cache_key)
@@ -326,7 +312,7 @@ async def query_assistant(
     Returns JSON with:
     - intent classification
     - UI action for client application to perform
-    - relevant data (duties, stations, verification info)
+    - relevant data (duties, stations, etc.)
     - cache_key to fetch audio separately
 
     Use this endpoint when you want to:

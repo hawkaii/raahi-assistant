@@ -11,7 +11,6 @@ class IntentType(str, Enum):
     CNG_PUMPS = "cng_pumps"
     PARKING = "parking"
     PETROL_PUMPS = "petrol_pumps"
-    PROFILE_VERIFICATION = "profile_verification"
     NEARBY_DRIVERS = "nearby_drivers"
     TOWING = "towing"
     TOILETS = "toilets"
@@ -39,9 +38,6 @@ class UIAction(str, Enum):
     SHOW_CAR_REPAIR = "show_car_repair"
     SHOW_HOSPITAL = "show_hospital"
     SHOW_POLICE_STATION = "show_police_station"
-    SHOW_VERIFICATION_CHECKLIST = "show_verification_checklist"
-    SHOW_DOCUMENT_UPLOAD = "show_document_upload"
-    NAVIGATE_TO_PROFILE = "navigate_to_profile"
     SHOW_MAP = "show_map"
     NONE = "none"
 
@@ -59,13 +55,8 @@ class DriverProfile(BaseModel):
     id: str
     name: str
     phone: str
-    is_verified: bool = False
-    documents_pending: list[str] = Field(default_factory=list)
     vehicle_type: Optional[str] = None
     vehicle_number: Optional[str] = None
-    license_verified: bool = False
-    rc_verified: bool = False
-    insurance_verified: bool = False
 
 
 class AssistantRequest(BaseModel):
@@ -100,7 +91,7 @@ class IntentResult(BaseModel):
     intent: IntentType
     response_text: str
     ui_action: UIAction
-    data: Optional[dict] = None  # Duties, stations, verification info
+    data: Optional[dict] = None  # Duties, stations, etc.
 
 
 class AssistantResponse(BaseModel):
