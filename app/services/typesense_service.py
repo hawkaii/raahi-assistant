@@ -142,25 +142,46 @@ class TypesenseService:
                     "per_page": limit,
                 }
             else:
-                # Text-based search with strict directional filtering
-                # Add city filters for strict direction matching
+                # Text-based search with directional matching using infix search
                 if pickup_city and drop_city:
-                    # Strict direction: pickup=Mumbai AND drop=Pune
-                    filter_parts.append(f"customerPickupLocationCity:={pickup_city}")
-                    filter_parts.append(f"customerDropLocationCity:={drop_city}")
+                    # Both cities: search pickup in pickup field, drop in drop field (directional)
+                    # Use pickup_city as main query, check drop_city in results
+                    search_params = {
+                        "q": pickup_city,
+                        "query_by": "customerPickupLocationCity",
+                        "filter_by": " && ".join(filter_parts),
+                        "infix": "always",  # Partial matching (Mumbai matches Navi Mumbai)
+                        "sort_by": "createdAt:desc",
+                        "per_page": limit * 2,  # Get more results for filtering
+                    }
                 elif pickup_city:
                     # Only pickup specified
-                    filter_parts.append(f"customerPickupLocationCity:={pickup_city}")
+                    search_params = {
+                        "q": pickup_city,
+                        "query_by": "customerPickupLocationCity",
+                        "filter_by": " && ".join(filter_parts),
+                        "infix": "always",
+                        "sort_by": "createdAt:desc",
+                        "per_page": limit,
+                    }
                 elif drop_city:
                     # Only drop specified
-                    filter_parts.append(f"customerDropLocationCity:={drop_city}")
-                
-                search_params = {
-                    "q": "*",  # Wildcard query since we're using filters
-                    "filter_by": " && ".join(filter_parts),
-                    "sort_by": "createdAt:desc",
-                    "per_page": limit,
-                }
+                    search_params = {
+                        "q": drop_city,
+                        "query_by": "customerDropLocationCity",
+                        "filter_by": " && ".join(filter_parts),
+                        "infix": "always",
+                        "sort_by": "createdAt:desc",
+                        "per_page": limit,
+                    }
+                else:
+                    # No cities specified, return all
+                    search_params = {
+                        "q": "*",
+                        "filter_by": " && ".join(filter_parts),
+                        "sort_by": "createdAt:desc",
+                        "per_page": limit,
+                    }
             
             results = self.client.collections[self.trips_collection].documents.search(
                 search_params
@@ -168,7 +189,20 @@ class TypesenseService:
             
             trips = []
             for hit in results.get("hits", []):
-                trips.append(hit["document"])
+                doc = hit["document"]
+                
+                # If both cities specified, filter by drop_city in code (partial match)
+                if pickup_city and drop_city:
+                    drop_city_lower = drop_city.lower()
+                    doc_drop_city_lower = doc.get("customerDropLocationCity", "").lower()
+                    if drop_city_lower in doc_drop_city_lower:
+                        trips.append(doc)
+                else:
+                    trips.append(doc)
+                
+                # Stop if we have enough results
+                if len(trips) >= limit:
+                    break
             
             logger.info(f"Found {len(trips)} trips (pickup_city={pickup_city}, coordinates={pickup_coordinates})")
             return trips
@@ -215,25 +249,46 @@ class TypesenseService:
                     "per_page": limit,
                 }
             else:
-                # Text-based search with strict directional filtering
-                # Add city filters for strict direction matching
+                # Text-based search with directional matching using infix search
                 if pickup_city and drop_city:
-                    # Strict direction: from=Mumbai AND to=Pune
-                    filter_parts.append(f"fromTxt:={pickup_city}")
-                    filter_parts.append(f"toTxt:={drop_city}")
+                    # Both cities: search pickup in fromTxt field, drop in toTxt field (directional)
+                    # Use pickup_city as main query, check drop_city in results
+                    search_params = {
+                        "q": pickup_city,
+                        "query_by": "fromTxt",
+                        "filter_by": " && ".join(filter_parts),
+                        "infix": "always",  # Partial matching (Mumbai matches Navi Mumbai)
+                        "sort_by": "createdAt:desc",
+                        "per_page": limit * 2,  # Get more results for filtering
+                    }
                 elif pickup_city:
                     # Only pickup specified
-                    filter_parts.append(f"fromTxt:={pickup_city}")
+                    search_params = {
+                        "q": pickup_city,
+                        "query_by": "fromTxt",
+                        "filter_by": " && ".join(filter_parts),
+                        "infix": "always",
+                        "sort_by": "createdAt:desc",
+                        "per_page": limit,
+                    }
                 elif drop_city:
                     # Only drop specified
-                    filter_parts.append(f"toTxt:={drop_city}")
-                
-                search_params = {
-                    "q": "*",  # Wildcard query since we're using filters
-                    "filter_by": " && ".join(filter_parts),
-                    "sort_by": "createdAt:desc",
-                    "per_page": limit,
-                }
+                    search_params = {
+                        "q": drop_city,
+                        "query_by": "toTxt",
+                        "filter_by": " && ".join(filter_parts),
+                        "infix": "always",
+                        "sort_by": "createdAt:desc",
+                        "per_page": limit,
+                    }
+                else:
+                    # No cities specified, return all
+                    search_params = {
+                        "q": "*",
+                        "filter_by": " && ".join(filter_parts),
+                        "sort_by": "createdAt:desc",
+                        "per_page": limit,
+                    }
             
             results = self.client.collections[self.leads_collection].documents.search(
                 search_params
@@ -241,7 +296,20 @@ class TypesenseService:
             
             leads = []
             for hit in results.get("hits", []):
-                leads.append(hit["document"])
+                doc = hit["document"]
+                
+                # If both cities specified, filter by drop_city in code (partial match)
+                if pickup_city and drop_city:
+                    drop_city_lower = drop_city.lower()
+                    doc_drop_city_lower = doc.get("toTxt", "").lower()
+                    if drop_city_lower in doc_drop_city_lower:
+                        leads.append(doc)
+                else:
+                    leads.append(doc)
+                
+                # Stop if we have enough results
+                if len(leads) >= limit:
+                    break
             
             logger.info(f"Found {len(leads)} leads (pickup_city={pickup_city}, coordinates={pickup_coordinates})")
             return leads
