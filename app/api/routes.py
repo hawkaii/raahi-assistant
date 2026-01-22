@@ -109,9 +109,42 @@ async def _process_intent(
         preferred_language=request.preferred_language,
     )
 
+    # Step 1.5: Check if GET_DUTIES has both cities missing, convert to ENTRY
+    extracted_params = intent_result.data.get("extracted_params", {}) if intent_result.data else {}
+    
+    if intent_result.intent == IntentType.GET_DUTIES:
+        pickup_city = extracted_params.get("from_city")
+        drop_city = extracted_params.get("to_city")
+        
+        # If BOTH cities are missing, return ENTRY state instead
+        pickup_empty = not pickup_city or (isinstance(pickup_city, str) and pickup_city.strip() == "")
+        drop_empty = not drop_city or (isinstance(drop_city, str) and drop_city.strip() == "")
+        
+        if pickup_empty and drop_empty:
+            logger.info(
+                f"GET_DUTIES with no cities specified for driver {request.driver_profile.id}, "
+                f"converting to ENTRY state"
+            )
+            
+            entry_url = audio_config.get_url(
+                IntentType.ENTRY,
+                request.interaction_count,
+                request.is_home
+            )
+            
+            return AssistantResponse(
+                session_id=session_id,
+                intent=IntentType.ENTRY,
+                ui_action=UIAction.ENTRY,
+                response_text="",
+                data=None,
+                audio_cached=False,
+                cache_key="",
+                audio_url=entry_url,
+            ), ""
+
     # Step 2: Fetch data based on intent
     data = None
-    extracted_params = intent_result.data.get("extracted_params", {}) if intent_result.data else {}
 
     if intent_result.intent == IntentType.GET_DUTIES:
         # Extract pickup and drop cities from Gemini's response
