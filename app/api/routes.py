@@ -246,6 +246,30 @@ async def _process_intent(
     elif intent_result.intent == IntentType.PARKING:
         data = {"stations": []}
 
+    elif intent_result.intent == IntentType.NEARBY_DRIVERS:
+        data = {"drivers": []}
+
+    elif intent_result.intent == IntentType.TOWING:
+        data = {"services": []}
+
+    elif intent_result.intent == IntentType.TOILETS:
+        data = {"locations": []}
+
+    elif intent_result.intent == IntentType.TAXI_STANDS:
+        data = {"stands": []}
+
+    elif intent_result.intent == IntentType.AUTO_PARTS:
+        data = {"shops": []}
+
+    elif intent_result.intent == IntentType.CAR_REPAIR:
+        data = {"shops": []}
+
+    elif intent_result.intent == IntentType.HOSPITAL:
+        data = {"hospitals": []}
+
+    elif intent_result.intent == IntentType.POLICE_STATION:
+        data = {"stations": []}
+
     elif intent_result.intent == IntentType.PROFILE_VERIFICATION:
         # Build verification checklist from driver profile
         profile = request.driver_profile
