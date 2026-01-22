@@ -62,6 +62,7 @@ class AssistantRequest(BaseModel):
     preferred_language: str = "hi"  # Default to Hindi
     interaction_count: Optional[int] = None  # Track user interaction count
     is_home: bool = True
+    chip_click: Optional[str] = None  # UI chip click type (e.g., "find")
 
 
 class DutyInfo(BaseModel):

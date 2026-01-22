@@ -140,6 +140,25 @@ class AudioConfigService:
         """
         return self._config.get(intent.value) is not None
 
+    def get_url_direct(self, key: str) -> Optional[str]:
+        """
+        Get audio URL directly by config key (not intent type).
+        
+        Useful for chip clicks and other non-intent-based audio URLs.
+        
+        Args:
+            key: The configuration key (e.g., "find_chip", "entry_2")
+            
+        Returns:
+            Audio URL string if configured, None otherwise
+        """
+        url = self._config.get(key)
+        
+        if url is None:
+            logger.debug(f"No audio URL for key '{key}'")
+        
+        return url
+
     def reload(self) -> None:
         """
         Manually reload configuration from file.

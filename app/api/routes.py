@@ -66,6 +66,21 @@ async def _process_intent(
     # Generate session ID if not provided
     session_id = request.session_id or str(uuid.uuid4())
 
+    # Check for chip_click (UI button/chip interaction - no Gemini parsing needed)
+    if request.chip_click == "find":
+        find_chip_url = audio_config.get_url_direct("find_chip")
+        
+        return AssistantResponse(
+            session_id=session_id,
+            intent=IntentType.GENERIC,
+            ui_action=UIAction.NONE,
+            response_text="",
+            data=None,
+            audio_cached=False,
+            cache_key="",
+            audio_url=find_chip_url,
+        ), ""
+
     # Check for entry state (either interaction_count present OR empty text)
     if request.text.strip() == "":
         greeting_url = audio_config.get_url(
