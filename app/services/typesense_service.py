@@ -1,5 +1,5 @@
 """
-Typesense service for searching duties and fuel stations.
+Typesense service for searching duties, trips, and leads.
 """
 
 import logging
@@ -7,7 +7,7 @@ from typing import Optional, List
 
 import typesense
 
-from app.models import Location, DutyInfo, FuelStation
+from app.models import Location, DutyInfo
 from config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,6 @@ class TypesenseService:
             "connection_timeout_seconds": 5,
         })
         self.duties_collection = settings.duties_collection
-        self.fuel_stations_collection = settings.fuel_stations_collection
         self.trips_collection = settings.trips_collection
         self.leads_collection = settings.leads_collection
 
@@ -316,67 +315,6 @@ class TypesenseService:
             
         except Exception as e:
             logger.error(f"Error searching leads: {e}")
-            return []
-
-    async def search_nearby_fuel_stations(
-        self,
-        location: Location,
-        fuel_type: str,  # "cng", "petrol", "diesel"
-        radius_km: float = 10.0,
-        limit: int = 10,
-    ) -> list[FuelStation]:
-        """
-        Search for nearby fuel stations using geo search.
-        
-        Args:
-            location: Current GPS location
-            fuel_type: Type of fuel ("cng", "petrol", "diesel")
-            radius_km: Search radius in kilometers
-            limit: Maximum results to return
-            
-        Returns:
-            List of nearby fuel stations sorted by distance
-        """
-        try:
-            search_params = {
-                "q": "*",
-                "query_by": "name,address",
-                "filter_by": f"location:({location.latitude}, {location.longitude}, {radius_km} km) && type:={fuel_type}",
-                "sort_by": f"location({location.latitude}, {location.longitude}):asc",
-                "per_page": limit,
-            }
-
-            results = self.client.collections[self.fuel_stations_collection].documents.search(
-                search_params
-            )
-
-            stations = []
-            for hit in results.get("hits", []):
-                doc = hit["document"]
-                geo_distance = hit.get("geo_distance_meters", {}).get("location", 0)
-                
-                # Handle location format (can be [lat, lng] or {"lat": x, "lng": y})
-                loc = doc["location"]
-                if isinstance(loc, list):
-                    lat, lng = loc[0], loc[1]
-                else:
-                    lat, lng = loc["lat"], loc["lng"]
-
-                stations.append(FuelStation(
-                    id=doc["id"],
-                    name=doc["name"],
-                    type=doc["type"],
-                    address=doc["address"],
-                    location=Location(latitude=lat, longitude=lng),
-                    distance_meters=geo_distance,
-                    rating=doc.get("rating"),
-                    is_open=doc.get("is_open", True),
-                ))
-
-            return stations
-
-        except Exception as e:
-            logger.error(f"Error searching fuel stations: {e}")
             return []
 
 

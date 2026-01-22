@@ -9,6 +9,7 @@ class IntentType(str, Enum):
     ENTRY = "entry"
     GET_DUTIES = "get_duties"
     CNG_PUMPS = "cng_pumps"
+    PARKING = "parking"
     PETROL_PUMPS = "petrol_pumps"
     PROFILE_VERIFICATION = "profile_verification"
     GENERIC = "generic"
@@ -21,6 +22,7 @@ class UIAction(str, Enum):
     SHOW_DUTIES_LIST = "show_duties_list"
     SHOW_CNG_STATIONS = "show_cng_stations"
     SHOW_PETROL_STATIONS = "show_petrol_stations"
+    SHOW_PARKING = "show_parking"
     SHOW_VERIFICATION_CHECKLIST = "show_verification_checklist"
     SHOW_DOCUMENT_UPLOAD = "show_document_upload"
     NAVIGATE_TO_PROFILE = "navigate_to_profile"
@@ -73,19 +75,6 @@ class DutyInfo(BaseModel):
     distance_km: float
     vehicle_type: str
     posted_at: str
-
-
-class FuelStation(BaseModel):
-    """Fuel station information."""
-
-    id: str
-    name: str
-    type: Literal["cng", "petrol", "diesel", "ev"]
-    address: str
-    location: Location
-    distance_meters: int
-    rating: Optional[float] = None
-    is_open: bool = True
 
 
 class IntentResult(BaseModel):

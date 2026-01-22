@@ -7,5 +7,6 @@
   "cng_pumps": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fcng.wav?alt=media&token=7b213349-af22-4d3b-84ba-26cd814926ef",
   "petrol_pumps": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fpetrol.wav?alt=media&token=1fb702e7-7bba-4296-86f1-40893d51a9f2",
   "profile_verification": null,
-  "generic": null
+  "generic": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fother_question.wav?alt=media&token=3b13b8a2-ffdf-4e76-a35c-3e14c620f595",
+  "parking": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fparking_space__found.wav?alt=media&token=67c4d17e-357c-4c20-8b9e-7c1eca1e7443"
 }

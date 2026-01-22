@@ -190,18 +190,13 @@ async def _process_intent(
         )
 
     elif intent_result.intent == IntentType.CNG_PUMPS:
-        stations = await typesense.search_nearby_fuel_stations(
-            location=request.current_location,
-            fuel_type="cng",
-        )
-        data = {"stations": [s.model_dump() for s in stations]}
+        data = {"stations": []}
 
     elif intent_result.intent == IntentType.PETROL_PUMPS:
-        stations = await typesense.search_nearby_fuel_stations(
-            location=request.current_location,
-            fuel_type="petrol",
-        )
-        data = {"stations": [s.model_dump() for s in stations]}
+        data = {"stations": []}
+
+    elif intent_result.intent == IntentType.PARKING:
+        data = {"stations": []}
 
     elif intent_result.intent == IntentType.PROFILE_VERIFICATION:
         # Build verification checklist from driver profile

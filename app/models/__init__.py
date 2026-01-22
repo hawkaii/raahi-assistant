@@ -6,7 +6,6 @@ from .schemas import (
     AssistantRequest,
     AssistantResponse,
     DutyInfo,
-    FuelStation,
     IntentResult,
 )
 
@@ -18,6 +17,5 @@ __all__ = [
     "AssistantRequest",
     "AssistantResponse",
     "DutyInfo",
-    "FuelStation",
     "IntentResult",
 ]
