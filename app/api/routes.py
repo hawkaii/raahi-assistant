@@ -177,12 +177,18 @@ async def _process_intent(
         if pickup_coordinates:
             search_tasks.append(
                 typesense.search_trips(
-                    pickup_coordinates=pickup_coordinates, radius_km=50.0, limit=50
+                    pickup_coordinates=pickup_coordinates, 
+                    drop_city=drop_city,
+                    radius_km=50.0, 
+                    limit=50
                 )
             )
             search_tasks.append(
                 typesense.search_leads(
-                    pickup_coordinates=pickup_coordinates, radius_km=50.0, limit=50
+                    pickup_coordinates=pickup_coordinates, 
+                    drop_city=drop_city,
+                    radius_km=50.0, 
+                    limit=50
                 )
             )
 

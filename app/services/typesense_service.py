@@ -109,7 +109,7 @@ class TypesenseService:
         drop_city: Optional[str] = None,
         pickup_coordinates: Optional[List[float]] = None,
         radius_km: float = 50.0,
-        limit: int = 50,
+        limit: int = 30,
     ) -> List[dict]:
         """
         Search for trips with text-based or geo-based search.
@@ -117,17 +117,25 @@ class TypesenseService:
         
         Args:
             pickup_city: Pickup city name for text search
-            drop_city: Drop city name for text search
+            drop_city: Drop city name for text search (use "any" to skip drop filtering)
             pickup_coordinates: [lat, lng] for geo search
             radius_km: Search radius for geo search
-            limit: Maximum results to return
+            limit: Maximum results to return (default: 30)
             
         Returns:
             List of trip documents
         """
         try:
+            # Check if drop_city should be used for filtering
+            has_drop_city = drop_city and drop_city.strip() != "" and drop_city.lower() != "any"
+            has_pickup_city = pickup_city and pickup_city.strip() != ""
+            
             # Always filter out partner trips
             filter_parts = ["customerIsOnboardedAsPartner:=false"]
+            
+            # Add drop_city filter if valid
+            if has_drop_city:
+                filter_parts.append(f"customerDropLocationCity:={drop_city}")
             
             # Determine search strategy
             if pickup_coordinates:
@@ -137,44 +145,31 @@ class TypesenseService:
                     "q": "*",
                     "query_by": "customerPickupLocationCity",
                     "filter_by": f"customerPickupLocationCoordinates:({lat}, {lng}, {radius_km} km) && " + " && ".join(filter_parts),
-                    "sort_by": f"customerPickupLocationCoordinates({lat}, {lng}):asc",
+                    "sort_by": f"customerPickupLocationCoordinates({lat}, {lng}):asc, createdAt:desc",
                     "per_page": limit,
                 }
             else:
-                # Text-based search with directional matching using infix search
-                if pickup_city and drop_city:
-                    # Both cities: search pickup in pickup field, drop in drop field (directional)
-                    # Use pickup_city as main query, check drop_city in results
+                # Text-based search with directional matching
+                if has_pickup_city:
+                    # Pickup city specified - search in pickup field
                     search_params = {
                         "q": pickup_city,
                         "query_by": "customerPickupLocationCity",
                         "filter_by": " && ".join(filter_parts),
-                        "infix": "always",  # Partial matching (Mumbai matches Navi Mumbai)
-                        "sort_by": "createdAt:desc",
-                        "per_page": limit * 2,  # Get more results for filtering
-                    }
-                elif pickup_city:
-                    # Only pickup specified
-                    search_params = {
-                        "q": pickup_city,
-                        "query_by": "customerPickupLocationCity",
-                        "filter_by": " && ".join(filter_parts),
-                        "infix": "always",
                         "sort_by": "createdAt:desc",
                         "per_page": limit,
                     }
-                elif drop_city:
-                    # Only drop specified
+                elif has_drop_city:
+                    # Only drop specified - search in drop field
                     search_params = {
                         "q": drop_city,
                         "query_by": "customerDropLocationCity",
                         "filter_by": " && ".join(filter_parts),
-                        "infix": "always",
                         "sort_by": "createdAt:desc",
                         "per_page": limit,
                     }
                 else:
-                    # No cities specified, return all
+                    # No cities specified, return latest
                     search_params = {
                         "q": "*",
                         "filter_by": " && ".join(filter_parts),
@@ -186,24 +181,10 @@ class TypesenseService:
                 search_params
             )
             
-            trips = []
-            for hit in results.get("hits", []):
-                doc = hit["document"]
-                
-                # If both cities specified, filter by drop_city in code (partial match)
-                if pickup_city and drop_city:
-                    drop_city_lower = drop_city.lower()
-                    doc_drop_city_lower = doc.get("customerDropLocationCity", "").lower()
-                    if drop_city_lower in doc_drop_city_lower:
-                        trips.append(doc)
-                else:
-                    trips.append(doc)
-                
-                # Stop if we have enough results
-                if len(trips) >= limit:
-                    break
+            # Extract all documents (filtering now done in Typesense)
+            trips = [hit["document"] for hit in results.get("hits", [])]
             
-            logger.info(f"Found {len(trips)} trips (pickup_city={pickup_city}, coordinates={pickup_coordinates})")
+            logger.info(f"Found {len(trips)} trips (pickup_city={pickup_city}, drop_city={drop_city}, coordinates={pickup_coordinates})")
             return trips
             
         except Exception as e:
@@ -216,7 +197,7 @@ class TypesenseService:
         drop_city: Optional[str] = None,
         pickup_coordinates: Optional[List[float]] = None,
         radius_km: float = 50.0,
-        limit: int = 50,
+        limit: int = 30,
     ) -> List[dict]:
         """
         Search for leads with text-based or geo-based search.
@@ -224,17 +205,25 @@ class TypesenseService:
         
         Args:
             pickup_city: Pickup city name for text search
-            drop_city: Drop city name for text search
+            drop_city: Drop city name for text search (use "any" to skip drop filtering)
             pickup_coordinates: [lat, lng] for geo search
             radius_km: Search radius for geo search
-            limit: Maximum results to return
+            limit: Maximum results to return (default: 30)
             
         Returns:
             List of lead documents
         """
         try:
+            # Check if drop_city should be used for filtering
+            has_drop_city = drop_city and drop_city.strip() != "" and drop_city.lower() != "any"
+            has_pickup_city = pickup_city and pickup_city.strip() != ""
+            
             # Always filter out pending leads
             filter_parts = ["status:!=pending"]
+            
+            # Add drop_city filter if valid
+            if has_drop_city:
+                filter_parts.append(f"toTxt:={drop_city}")
             
             # Determine search strategy
             if pickup_coordinates:
@@ -244,44 +233,31 @@ class TypesenseService:
                     "q": "*",
                     "query_by": "fromTxt",
                     "filter_by": f"location:({lat}, {lng}, {radius_km} km) && " + " && ".join(filter_parts),
-                    "sort_by": f"location({lat}, {lng}):asc",
+                    "sort_by": f"location({lat}, {lng}):asc, createdAt:desc",
                     "per_page": limit,
                 }
             else:
-                # Text-based search with directional matching using infix search
-                if pickup_city and drop_city:
-                    # Both cities: search pickup in fromTxt field, drop in toTxt field (directional)
-                    # Use pickup_city as main query, check drop_city in results
+                # Text-based search with directional matching
+                if has_pickup_city:
+                    # Pickup city specified - search in fromTxt field
                     search_params = {
                         "q": pickup_city,
                         "query_by": "fromTxt",
                         "filter_by": " && ".join(filter_parts),
-                        "infix": "always",  # Partial matching (Mumbai matches Navi Mumbai)
-                        "sort_by": "createdAt:desc",
-                        "per_page": limit * 2,  # Get more results for filtering
-                    }
-                elif pickup_city:
-                    # Only pickup specified
-                    search_params = {
-                        "q": pickup_city,
-                        "query_by": "fromTxt",
-                        "filter_by": " && ".join(filter_parts),
-                        "infix": "always",
                         "sort_by": "createdAt:desc",
                         "per_page": limit,
                     }
-                elif drop_city:
-                    # Only drop specified
+                elif has_drop_city:
+                    # Only drop specified - search in toTxt field
                     search_params = {
                         "q": drop_city,
                         "query_by": "toTxt",
                         "filter_by": " && ".join(filter_parts),
-                        "infix": "always",
                         "sort_by": "createdAt:desc",
                         "per_page": limit,
                     }
                 else:
-                    # No cities specified, return all
+                    # No cities specified, return latest
                     search_params = {
                         "q": "*",
                         "filter_by": " && ".join(filter_parts),
@@ -293,24 +269,10 @@ class TypesenseService:
                 search_params
             )
             
-            leads = []
-            for hit in results.get("hits", []):
-                doc = hit["document"]
-                
-                # If both cities specified, filter by drop_city in code (partial match)
-                if pickup_city and drop_city:
-                    drop_city_lower = drop_city.lower()
-                    doc_drop_city_lower = doc.get("toTxt", "").lower()
-                    if drop_city_lower in doc_drop_city_lower:
-                        leads.append(doc)
-                else:
-                    leads.append(doc)
-                
-                # Stop if we have enough results
-                if len(leads) >= limit:
-                    break
+            # Extract all documents (filtering now done in Typesense)
+            leads = [hit["document"] for hit in results.get("hits", [])]
             
-            logger.info(f"Found {len(leads)} leads (pickup_city={pickup_city}, coordinates={pickup_coordinates})")
+            logger.info(f"Found {len(leads)} leads (pickup_city={pickup_city}, drop_city={drop_city}, coordinates={pickup_coordinates})")
             return leads
             
         except Exception as e:

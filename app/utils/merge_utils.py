@@ -9,26 +9,38 @@ def merge_and_deduplicate(results_lists: List[List[Dict[str, Any]]]) -> List[Dic
     """
     Merge multiple lists of results and remove duplicates based on 'id' field.
     
+    Behavior matches JavaScript mergeAndUnique():
+    - Items WITHOUT 'id' field are SKIPPED (not included in results)
+    - For duplicates, LAST occurrence wins (later arrays override earlier ones)
+    - Order is preserved based on insertion order (Python 3.7+ dict behavior)
+    
+    This ensures geo search results (which come later) override text search results
+    when the same item appears in both, preserving additional data like distance.
+    
     Args:
         results_lists: List of result lists to merge
         
     Returns:
         Merged and deduplicated list of results
     """
-    seen_ids = set()
-    merged = []
+    id_map = {}  # Use dict instead of set to allow overwriting
     
     for results in results_lists:
+        # Safety check: ensure results is a list
+        if not isinstance(results, list):
+            continue
+            
         for item in results:
             item_id = item.get("id")
-            if item_id and item_id not in seen_ids:
-                seen_ids.add(item_id)
-                merged.append(item)
-            elif not item_id:
-                # If no id, include anyway (shouldn't happen but be safe)
-                merged.append(item)
+            if item_id:  # Only process items with an id (skip items without id)
+                id_map[item_id] = item  # Last occurrence wins (overwrites previous)
     
-    logger.info(f"Merged {sum(len(r) for r in results_lists)} results into {len(merged)} unique items")
+    merged = list(id_map.values())
+    
+    # Safe logging that handles None values in results_lists
+    total_input = sum(len(r) for r in results_lists if isinstance(r, list))
+    logger.info(f"Merged {total_input} results into {len(merged)} unique items")
+    
     return merged
 
 
