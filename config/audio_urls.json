@@ -4,6 +4,8 @@
   "entry_short" : "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fgreeting_fast.wav?alt=media&token=35cbd2a2-0147-44e8-8f23-ad6507330eeb",
   "get_duties": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fduties_found.wav?alt=media&token=54afeeee-0534-4060-9291-75bbe5f895aa",
   "get_duties_short": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fduties_found_short.wav?alt=media&token=c0371333-dbce-491d-ab73-201bc4eb500d",
+  "no_duty": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fno_duty.wav?alt=media&token=c7d92b30-9c4a-4cfc-8d66-549f181c1711",
+  "india_only": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Findia_only.wav?alt=media&token=52066fae-07a6-4a4d-a47f-9c4286165f65",
   "cng_pumps": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fcng.wav?alt=media&token=7b213349-af22-4d3b-84ba-26cd814926ef",
   "petrol_pumps": "https://firebasestorage.googleapis.com/v0/b/bwi-cabswalle.appspot.com/o/Raahi%2Fpetrol.wav?alt=media&token=1fb702e7-7bba-4296-86f1-40893d51a9f2",
   "profile_verification": null,

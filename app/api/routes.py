@@ -30,7 +30,7 @@ from app.services import (
     get_cache_service,
     get_audio_config_service,
 )
-from app.services.geocoding_service import get_city_coordinates
+from app.services.geocoding_service import get_city_coordinates, get_city_coordinates_with_country
 from app.services.firebase_service import get_firebase_service
 from app.utils.merge_utils import (
     merge_and_deduplicate,
@@ -151,16 +151,124 @@ async def _process_intent(
         pickup_city = extracted_params.get("from_city")
         drop_city = extracted_params.get("to_city")
 
-        # Try to get coordinates for pickup city if available
+        # Validate that cities are in India
         pickup_coordinates = None
+        pickup_country = None
+        drop_country = None
         used_geo = False
+        
+        # Check pickup city if provided
         if pickup_city:
-            pickup_coordinates = await get_city_coordinates(pickup_city)
+            pickup_coordinates, pickup_country = await get_city_coordinates_with_country(pickup_city)
+            
+            # If geocoding failed, deny the request (as per requirement #1: DENY)
+            if pickup_country is None:
+                logger.warning(f"Could not geocode pickup city '{pickup_city}' - denying request")
+                
+                india_only_url = audio_config.get_url_direct("india_only")
+                
+                return AssistantResponse(
+                    session_id=session_id,
+                    success=True,
+                    intent=IntentType.END,
+                    ui_action=UIAction.SHOW_END,
+                    response_text="",
+                    data=None,
+                    audio_cached=False,
+                    cache_key="",
+                    audio_url=india_only_url,
+                ), ""
+            
+            # If city is not in India, deny the request
+            if pickup_country != "IN":
+                logger.info(
+                    f"Pickup city '{pickup_city}' is in {pickup_country}, not India - denying request"
+                )
+                
+                # Log rejected search to Firebase Analytics
+                background_tasks.add_task(
+                    get_firebase_service().log_search,
+                    driver_id=request.driver_profile.id,
+                    pickup_city=pickup_city,
+                    drop_city=drop_city,
+                    used_geo=False,
+                    trips_count=0,
+                    leads_count=0,
+                )
+                
+                india_only_url = audio_config.get_url_direct("india_only")
+                
+                return AssistantResponse(
+                    session_id=session_id,
+                    success=True,
+                    intent=IntentType.END,
+                    ui_action=UIAction.SHOW_END,
+                    response_text="",
+                    data=None,
+                    audio_cached=False,
+                    cache_key="",
+                    audio_url=india_only_url,
+                ), ""
+            
+            # City is in India - coordinates are valid for geo search
             if pickup_coordinates:
                 used_geo = True
                 logger.info(
-                    f"Using geo search for pickup city '{pickup_city}': {pickup_coordinates}"
+                    f"Using geo search for pickup city '{pickup_city}' (India): {pickup_coordinates}"
                 )
+        
+        # Check drop city if provided (as per requirement #5: validate BOTH)
+        if drop_city:
+            _, drop_country = await get_city_coordinates_with_country(drop_city)
+            
+            # If geocoding failed, deny the request
+            if drop_country is None:
+                logger.warning(f"Could not geocode drop city '{drop_city}' - denying request")
+                
+                india_only_url = audio_config.get_url_direct("india_only")
+                
+                return AssistantResponse(
+                    session_id=session_id,
+                    success=True,
+                    intent=IntentType.END,
+                    ui_action=UIAction.SHOW_END,
+                    response_text="",
+                    data=None,
+                    audio_cached=False,
+                    cache_key="",
+                    audio_url=india_only_url,
+                ), ""
+            
+            # If city is not in India, deny the request
+            if drop_country != "IN":
+                logger.info(
+                    f"Drop city '{drop_city}' is in {drop_country}, not India - denying request"
+                )
+                
+                # Log rejected search to Firebase Analytics
+                background_tasks.add_task(
+                    get_firebase_service().log_search,
+                    driver_id=request.driver_profile.id,
+                    pickup_city=pickup_city,
+                    drop_city=drop_city,
+                    used_geo=used_geo,
+                    trips_count=0,
+                    leads_count=0,
+                )
+                
+                india_only_url = audio_config.get_url_direct("india_only")
+                
+                return AssistantResponse(
+                    session_id=session_id,
+                    success=True,
+                    intent=IntentType.END,
+                    ui_action=UIAction.SHOW_END,
+                    response_text="",
+                    data=None,
+                    audio_cached=False,
+                    cache_key="",
+                    audio_url=india_only_url,
+                ), ""
 
         # Run 4 parallel searches: trips (text), trips (geo), leads (text), leads (geo)
         search_tasks = []
@@ -231,6 +339,36 @@ async def _process_intent(
         data = {"trips": all_trips, "leads": all_leads}
 
         logger.info(f"GET_DUTIES: Found {len(all_trips)} trips, {len(all_leads)} leads")
+
+        # Check if no duties were found - return END intent
+        if len(all_trips) == 0 and len(all_leads) == 0:
+            logger.info("No duties found - returning END intent with no_duty audio")
+            
+            # Log zero-result search to Firebase Analytics
+            background_tasks.add_task(
+                get_firebase_service().log_search,
+                driver_id=request.driver_profile.id,
+                pickup_city=pickup_city,
+                drop_city=drop_city,
+                used_geo=used_geo,
+                trips_count=0,
+                leads_count=0,
+            )
+            
+            # Get no_duty audio URL
+            no_duty_url = audio_config.get_url_direct("no_duty")
+            
+            return AssistantResponse(
+                session_id=session_id,
+                success=True,
+                intent=IntentType.END,
+                ui_action=UIAction.SHOW_END,
+                response_text="",
+                data=None,
+                audio_cached=False,
+                cache_key="",
+                audio_url=no_duty_url,
+            ), ""
 
         # Log search analytics to Firebase (background task - async, non-blocking)
         background_tasks.add_task(
