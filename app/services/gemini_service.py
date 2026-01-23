@@ -54,6 +54,18 @@ Response: {"intent": "get_duties", "ui_action": "show_duties_list", "response_te
 User: "Find me a duty from Delhi to Mumbai"
 Response: {"intent": "get_duties", "ui_action": "show_duties_list", "response_text": "Looking for available duties from Delhi to Mumbai.", "extracted_params": {"from_city": "Delhi", "to_city": "Mumbai"}}
 
+User: "mumbai"
+Response: {"intent": "get_duties", "ui_action": "show_duties_list", "response_text": "Looking for duties from Mumbai.", "extracted_params": {"from_city": "Mumbai"}}
+
+User: "Delhi"
+Response: {"intent": "get_duties", "ui_action": "show_duties_list", "response_text": "Looking for duties from Delhi.", "extracted_params": {"from_city": "Delhi"}}
+
+User: "मुंबई"
+Response: {"intent": "get_duties", "ui_action": "show_duties_list", "response_text": "Looking for duties from Mumbai.", "extracted_params": {"from_city": "Mumbai"}}
+
+User: "पुणे"
+Response: {"intent": "get_duties", "ui_action": "show_duties_list", "response_text": "Looking for duties from Pune.", "extracted_params": {"from_city": "Pune"}}
+
 User: "Paas mein CNG pump kahan hai?"
 Response: {"intent": "cng_pumps", "ui_action": "show_cng_stations", "response_text": "Finding nearby CNG stations for you.", "extracted_params": {}}
 
