@@ -162,26 +162,19 @@ async def _process_intent(
         if pickup_city:
             pickup_coordinates, pickup_country = await get_city_coordinates_with_country(pickup_city)
             
-            # If geocoding failed, deny the request (as per requirement #1: DENY)
+            # If geocoding failed, skip geo search but continue with text search
+            # This handles cases like "Kamathivada" (misspelled "Kamithi wada")
             if pickup_country is None:
-                logger.warning(f"Could not geocode pickup city '{pickup_city}' - denying request")
-                
-                india_only_url = audio_config.get_url_direct("india_only")
-                
-                return AssistantResponse(
-                    session_id=session_id,
-                    success=True,
-                    intent=IntentType.END,
-                    ui_action=UIAction.SHOW_END,
-                    response_text="",  # No TTS, use audio_url instead
-                    data=None,
-                    audio_cached=False,
-                    cache_key="",
-                    audio_url=india_only_url,
-                ), ""
-            
-            # If city is not in India, deny the request
-            if pickup_country != "IN":
+                logger.warning(
+                    f"Could not geocode pickup city '{pickup_city}' - "
+                    f"skipping geo-based search, will use text-based search only"
+                )
+                # Don't deny request - Typesense has better fuzzy matching
+                pickup_coordinates = None
+                used_geo = False
+                # Continue to text search (don't return here)
+            # Only validate if geocoding succeeded
+            elif pickup_country != "IN":
                 logger.info(
                     f"Pickup city '{pickup_city}' is in {pickup_country}, not India - denying request"
                 )
@@ -218,30 +211,21 @@ async def _process_intent(
                     f"Using geo search for pickup city '{pickup_city}' (India): {pickup_coordinates}"
                 )
         
-        # Check drop city if provided (as per requirement #5: validate BOTH)
+        # Check drop city if provided (validate country only if geocoding succeeds)
         if drop_city:
             _, drop_country = await get_city_coordinates_with_country(drop_city)
             
-            # If geocoding failed, deny the request
+            # If geocoding failed, log warning but continue with text search
+            # This handles cases like "Kamathivada" (misspelled "Kamithi wada")
             if drop_country is None:
-                logger.warning(f"Could not geocode drop city '{drop_city}' - denying request")
-                
-                india_only_url = audio_config.get_url_direct("india_only")
-                
-                return AssistantResponse(
-                    session_id=session_id,
-                    success=True,
-                    intent=IntentType.END,
-                    ui_action=UIAction.SHOW_END,
-                    response_text="",  # No TTS, use audio_url instead
-                    data=None,
-                    audio_cached=False,
-                    cache_key="",
-                    audio_url=india_only_url,
-                ), ""
-            
-            # If city is not in India, deny the request
-            if drop_country != "IN":
+                logger.warning(
+                    f"Could not geocode drop city '{drop_city}' - "
+                    f"proceeding with text-based search only"
+                )
+                # Don't deny request - Typesense has better fuzzy matching
+                # Continue execution (no return statement)
+            # Only validate if geocoding succeeded
+            elif drop_country != "IN":
                 logger.info(
                     f"Drop city '{drop_city}' is in {drop_country}, not India - denying request"
                 )
