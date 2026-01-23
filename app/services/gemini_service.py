@@ -136,17 +136,16 @@ class GeminiService:
         self._current_language = "hi"  # Default to Hindi
     
     def _get_model_for_language(self, language: str) -> GenerativeModel:
-        """Get or create a model with the appropriate language prompt."""
-        if language == "hi":
-            return GenerativeModel(
-                self.settings.gemini_model,
-                system_instruction=SYSTEM_PROMPT_HINDI,
-            )
-        else:
-            return GenerativeModel(
-                self.settings.gemini_model,
-                system_instruction=SYSTEM_PROMPT_ENGLISH,
-            )
+        """Get or create a model with the appropriate language prompt.
+        
+        NOTE: Always returns English model regardless of language parameter.
+        All responses are now in English only.
+        """
+        # Always use English prompts (language parameter ignored)
+        return GenerativeModel(
+            self.settings.gemini_model,
+            system_instruction=SYSTEM_PROMPT_ENGLISH,
+        )
 
     def _build_context(
         self, driver_profile: DriverProfile, location: Location

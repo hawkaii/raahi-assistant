@@ -74,7 +74,7 @@ async def _process_intent(
             session_id=session_id,
             intent=IntentType.GENERIC,
             ui_action=UIAction.NONE,
-            response_text="",
+            response_text="",  # No TTS, use audio_url instead
             data=None,
             audio_cached=False,
             cache_key="",
@@ -93,7 +93,7 @@ async def _process_intent(
             session_id=session_id,
             intent=IntentType.ENTRY,
             ui_action=UIAction.ENTRY,
-            response_text="",
+            response_text="",  # No TTS, use audio_url instead
             data=None,
             audio_cached=False,
             cache_key="",
@@ -101,12 +101,13 @@ async def _process_intent(
         ), ""
 
     # Step 1: Classify intent and get response using Gemini
+    # Force English responses (audio URLs are in English)
     intent_result = await gemini.classify_and_respond(
         user_text=request.text,
         driver_profile=request.driver_profile,
         location=request.current_location,
         session_id=session_id,
-        preferred_language=request.preferred_language,
+        preferred_language="en",  # Always use English
     )
 
     # Step 1.5: Check if GET_DUTIES has both cities missing, convert to ENTRY
@@ -136,7 +137,7 @@ async def _process_intent(
                 session_id=session_id,
                 intent=IntentType.ENTRY,
                 ui_action=UIAction.ENTRY,
-                response_text="",
+                response_text="",  # No TTS, use audio_url instead
                 data=None,
                 audio_cached=False,
                 cache_key="",
@@ -172,7 +173,7 @@ async def _process_intent(
                     success=True,
                     intent=IntentType.END,
                     ui_action=UIAction.SHOW_END,
-                    response_text="",
+                    response_text="",  # No TTS, use audio_url instead
                     data=None,
                     audio_cached=False,
                     cache_key="",
@@ -203,7 +204,7 @@ async def _process_intent(
                     success=True,
                     intent=IntentType.END,
                     ui_action=UIAction.SHOW_END,
-                    response_text="",
+                    response_text="",  # No TTS, use audio_url instead
                     data=None,
                     audio_cached=False,
                     cache_key="",
@@ -232,7 +233,7 @@ async def _process_intent(
                     success=True,
                     intent=IntentType.END,
                     ui_action=UIAction.SHOW_END,
-                    response_text="",
+                    response_text="",  # No TTS, use audio_url instead
                     data=None,
                     audio_cached=False,
                     cache_key="",
@@ -263,7 +264,7 @@ async def _process_intent(
                     success=True,
                     intent=IntentType.END,
                     ui_action=UIAction.SHOW_END,
-                    response_text="",
+                    response_text="",  # No TTS, use audio_url instead
                     data=None,
                     audio_cached=False,
                     cache_key="",
@@ -363,7 +364,7 @@ async def _process_intent(
                 success=True,
                 intent=IntentType.END,
                 ui_action=UIAction.SHOW_END,
-                response_text="",
+                response_text="",  # No TTS, use audio_url instead
                 data=None,
                 audio_cached=False,
                 cache_key="",
@@ -417,11 +418,8 @@ async def _process_intent(
     elif intent_result.intent == IntentType.END:
         data = {}
 
-    # Step 3: Check if audio is cached and determine audio_url
-    cache_key = tts.get_cache_key(intent_result.response_text)
-    audio_cached = await cache.exists(cache_key)
-    
-    # Get audio URL from config based on intent type, interaction count, and home location
+    # Step 3: Get audio URL from config (no TTS generation)
+    # No cache needed since we're using pre-recorded audio URLs
     audio_url = audio_config.get_url(
         intent_result.intent, 
         request.interaction_count,
@@ -434,10 +432,10 @@ async def _process_intent(
         "success": True,
         "intent": intent_result.intent,
         "ui_action": intent_result.ui_action,
-        "response_text": intent_result.response_text,
+        "response_text": "",  # No TTS, use audio_url instead
         "data": data,
-        "audio_cached": audio_cached,
-        "cache_key": cache_key,
+        "audio_cached": False,  # Not using cache anymore
+        "cache_key": "",  # Empty since no TTS
         "audio_url": audio_url,
     }
 
@@ -526,37 +524,43 @@ async def query_with_audio(
     try:
         response, response_text = await _process_intent(request, background_tasks)
 
-        tts = get_tts_service()
-        cache = get_cache_service()
-        cache_key = response.cache_key
+        # TTS service no longer needed - using audio_url instead
+        # tts = get_tts_service()
+        # cache = get_cache_service()
+        # cache_key = response.cache_key
 
         async def stream_response() -> AsyncIterator[bytes]:
             # First, yield JSON metadata
             json_data = response.model_dump_json()
             yield json_data.encode() + b"\n"
 
-            # If audio_url is present (entry state), client application will fetch it directly
-            # Don't stream any audio bytes - client handles the greeting URL
-            if response.audio_url:
-                return
-
-            # Check cache first
-            cached_audio = await cache.get(cache_key)
-            if cached_audio:
-                # Stream cached audio in chunks
-                chunk_size = 4096
-                for i in range(0, len(cached_audio), chunk_size):
-                    yield cached_audio[i : i + chunk_size]
-            else:
-                # Generate and cache audio
-                audio_chunks = []
-                async for chunk in tts.synthesize_speech_streaming(response_text):
-                    audio_chunks.append(chunk)
-                    yield chunk
-
-                # Cache the full audio
-                full_audio = b"".join(audio_chunks)
-                await cache.set(cache_key, full_audio)
+            # Client will fetch audio from audio_url directly
+            # No audio bytes streamed from server anymore
+            # 
+            # NOTE: If audio_url is present, client application will fetch it directly
+            # The streaming endpoint now only returns JSON metadata
+            #
+            # --- TTS generation code commented out (no longer needed) ---
+            # if response.audio_url:
+            #     return
+            #
+            # # Check cache first
+            # cached_audio = await cache.get(cache_key)
+            # if cached_audio:
+            #     # Stream cached audio in chunks
+            #     chunk_size = 4096
+            #     for i in range(0, len(cached_audio), chunk_size):
+            #         yield cached_audio[i : i + chunk_size]
+            # else:
+            #     # Generate and cache audio
+            #     audio_chunks = []
+            #     async for chunk in tts.synthesize_speech_streaming(response_text):
+            #         audio_chunks.append(chunk)
+            #         yield chunk
+            #
+            #     # Cache the full audio
+            #     full_audio = b"".join(audio_chunks)
+            #     await cache.set(cache_key, full_audio)
 
         return StreamingResponse(
             stream_response(),

@@ -103,7 +103,7 @@ class AssistantResponse(BaseModel):
     success: bool = True  # Always true for successful 200 responses
     intent: IntentType
     ui_action: UIAction
-    response_text: str
+    response_text: str  # Deprecated: Always empty, use audio_url instead
     query: Optional[dict] = None  # Query info (for GET_DUTIES)
     counts: Optional[dict] = None  # Counts info (for GET_DUTIES)
     data: Optional[dict] = None
