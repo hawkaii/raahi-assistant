@@ -114,6 +114,7 @@ class TypesenseService:
         """
         Search for trips with text-based or geo-based search.
         Filters out trips where customerIsOnboardedAsPartner=true.
+        Aligned with Dart/Flutter implementation using LOOSE matching.
         
         Args:
             pickup_city: Pickup city name for text search
@@ -130,52 +131,49 @@ class TypesenseService:
             has_drop_city = drop_city and drop_city.strip() != "" and drop_city.lower() != "any"
             has_pickup_city = pickup_city and pickup_city.strip() != ""
             
-            # Always filter out partner trips
+            # Always filter out partner trips (EXACT match with :=)
             filter_parts = ["customerIsOnboardedAsPartner:=false"]
-            
-            # Add drop_city filter if valid
-            if has_drop_city:
-                filter_parts.append(f"customerDropLocationCity:={drop_city}")
             
             # Determine search strategy
             if pickup_coordinates:
                 # Geo-based search
                 lat, lng = pickup_coordinates
+                
+                # Add city filters with LOOSE matching (:) if specified
+                if has_pickup_city:
+                    filter_parts.append(f"customerPickupLocationCity:{pickup_city}")
+                if has_drop_city:
+                    filter_parts.append(f"customerDropLocationCity:{drop_city}")
+                
                 search_params = {
                     "q": "*",
-                    "query_by": "customerPickupLocationCity",
+                    "query_by": "",
                     "filter_by": f"customerPickupLocationCoordinates:({lat}, {lng}, {radius_km} km) && " + " && ".join(filter_parts),
                     "sort_by": f"customerPickupLocationCoordinates({lat}, {lng}):asc, createdAt:desc",
                     "per_page": limit,
                 }
             else:
-                # Text-based search with directional matching
-                if has_pickup_city:
-                    # Pickup city specified - search in pickup field
-                    search_params = {
-                        "q": pickup_city,
-                        "query_by": "customerPickupLocationCity",
-                        "filter_by": " && ".join(filter_parts),
-                        "sort_by": "createdAt:desc",
-                        "per_page": limit,
-                    }
+                # Text-based search - ALIGNED WITH DART
+                # Use LOOSE MATCH (:) for city filters, not EXACT (:=)
+                if has_pickup_city and has_drop_city:
+                    # Both cities specified - add both to filters (LOOSE match)
+                    filter_parts.append(f"customerPickupLocationCity:{pickup_city}")
+                    filter_parts.append(f"customerDropLocationCity:{drop_city}")
+                elif has_pickup_city:
+                    # Only pickup specified - filter by customerPickupLocationCity (LOOSE match)
+                    filter_parts.append(f"customerPickupLocationCity:{pickup_city}")
                 elif has_drop_city:
-                    # Only drop specified - search in drop field
-                    search_params = {
-                        "q": drop_city,
-                        "query_by": "customerDropLocationCity",
-                        "filter_by": " && ".join(filter_parts),
-                        "sort_by": "createdAt:desc",
-                        "per_page": limit,
-                    }
-                else:
-                    # No cities specified, return latest
-                    search_params = {
-                        "q": "*",
-                        "filter_by": " && ".join(filter_parts),
-                        "sort_by": "createdAt:desc",
-                        "per_page": limit,
-                    }
+                    # Only drop specified - filter by customerDropLocationCity (LOOSE match)
+                    filter_parts.append(f"customerDropLocationCity:{drop_city}")
+                
+                # Use wildcard search with empty query_by (all filtering via filter_by)
+                search_params = {
+                    "q": "*",
+                    "query_by": "",
+                    "filter_by": " && ".join(filter_parts),
+                    "sort_by": "createdAt:desc",
+                    "per_page": limit,
+                }
             
             results = self.client.collections[self.trips_collection].documents.search(
                 search_params
@@ -202,6 +200,7 @@ class TypesenseService:
         """
         Search for leads with text-based or geo-based search.
         Filters out leads where status=pending.
+        Aligned with Dart/Flutter implementation using LOOSE matching.
         
         Args:
             pickup_city: Pickup city name for text search
@@ -218,52 +217,49 @@ class TypesenseService:
             has_drop_city = drop_city and drop_city.strip() != "" and drop_city.lower() != "any"
             has_pickup_city = pickup_city and pickup_city.strip() != ""
             
-            # Always filter out pending leads
+            # Always filter out pending leads (EXACT match with :=)
             filter_parts = ["status:!=pending"]
-            
-            # Add drop_city filter if valid
-            if has_drop_city:
-                filter_parts.append(f"toTxt:={drop_city}")
             
             # Determine search strategy
             if pickup_coordinates:
                 # Geo-based search using the location field
                 lat, lng = pickup_coordinates
+                
+                # Add city filters with LOOSE matching (:) if specified
+                if has_pickup_city:
+                    filter_parts.append(f"fromTxt:{pickup_city}")
+                if has_drop_city:
+                    filter_parts.append(f"toTxt:{drop_city}")
+                
                 search_params = {
                     "q": "*",
-                    "query_by": "fromTxt",
+                    "query_by": "",
                     "filter_by": f"location:({lat}, {lng}, {radius_km} km) && " + " && ".join(filter_parts),
                     "sort_by": f"location({lat}, {lng}):asc, createdAt:desc",
                     "per_page": limit,
                 }
             else:
-                # Text-based search with directional matching
-                if has_pickup_city:
-                    # Pickup city specified - search in fromTxt field
-                    search_params = {
-                        "q": pickup_city,
-                        "query_by": "fromTxt",
-                        "filter_by": " && ".join(filter_parts),
-                        "sort_by": "createdAt:desc",
-                        "per_page": limit,
-                    }
+                # Text-based search - ALIGNED WITH DART
+                # Use LOOSE MATCH (:) for city filters, not EXACT (:=)
+                if has_pickup_city and has_drop_city:
+                    # Both cities specified - add both to filters (LOOSE match)
+                    filter_parts.append(f"fromTxt:{pickup_city}")
+                    filter_parts.append(f"toTxt:{drop_city}")
+                elif has_pickup_city:
+                    # Only pickup specified - filter by fromTxt (LOOSE match)
+                    filter_parts.append(f"fromTxt:{pickup_city}")
                 elif has_drop_city:
-                    # Only drop specified - search in toTxt field
-                    search_params = {
-                        "q": drop_city,
-                        "query_by": "toTxt",
-                        "filter_by": " && ".join(filter_parts),
-                        "sort_by": "createdAt:desc",
-                        "per_page": limit,
-                    }
-                else:
-                    # No cities specified, return latest
-                    search_params = {
-                        "q": "*",
-                        "filter_by": " && ".join(filter_parts),
-                        "sort_by": "createdAt:desc",
-                        "per_page": limit,
-                    }
+                    # Only drop specified - filter by toTxt (LOOSE match)
+                    filter_parts.append(f"toTxt:{drop_city}")
+                
+                # Use wildcard search with empty query_by (all filtering via filter_by)
+                search_params = {
+                    "q": "*",
+                    "query_by": "",
+                    "filter_by": " && ".join(filter_parts),
+                    "sort_by": "createdAt:desc",
+                    "per_page": limit,
+                }
             
             results = self.client.collections[self.leads_collection].documents.search(
                 search_params
