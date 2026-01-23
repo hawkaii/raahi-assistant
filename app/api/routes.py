@@ -69,7 +69,17 @@ async def _process_intent(
     # Check for chip_click (UI button/chip interaction - no Gemini parsing needed)
     if request.chip_click == "find":
         find_chip_url = audio_config.get_url_direct("find_chip")
-        
+
+        # Log chip click as intent query
+        background_tasks.add_task(
+            get_firebase_service().log_intent,
+            driver_id=request.driver_profile.id,
+            query_text="[CHIP_CLICK: find]",
+            intent=IntentType.GENERIC.value,
+            session_id=session_id,
+            interaction_count=request.interaction_count,
+        )
+
         return AssistantResponse(
             session_id=session_id,
             intent=IntentType.GENERIC,
@@ -110,6 +120,16 @@ async def _process_intent(
         preferred_language="en",  # Always use English
     )
 
+    # Log intent query to Firebase (background task - non-blocking)
+    background_tasks.add_task(
+        get_firebase_service().log_intent,
+        driver_id=request.driver_profile.id,
+        query_text=request.text,
+        intent=intent_result.intent.value,  # Convert enum to string
+        session_id=session_id,
+        interaction_count=request.interaction_count,
+    )
+
     # Step 1.5: Check if GET_DUTIES has both cities missing, convert to ENTRY
     extracted_params = intent_result.data.get("extracted_params", {}) if intent_result.data else {}
     
@@ -126,13 +146,23 @@ async def _process_intent(
                 f"GET_DUTIES with no cities specified for driver {request.driver_profile.id}, "
                 f"converting to ENTRY state"
             )
-            
+
+            # Log the original GET_DUTIES intent before conversion
+            background_tasks.add_task(
+                get_firebase_service().log_intent,
+                driver_id=request.driver_profile.id,
+                query_text=request.text,
+                intent="GET_DUTIES_NO_CITIES",  # Special marker
+                session_id=session_id,
+                interaction_count=request.interaction_count,
+            )
+
             entry_url = audio_config.get_url(
                 IntentType.ENTRY,
                 request.interaction_count,
                 request.is_home
             )
-            
+
             return AssistantResponse(
                 session_id=session_id,
                 intent=IntentType.ENTRY,

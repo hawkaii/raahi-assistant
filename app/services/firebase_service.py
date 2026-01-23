@@ -138,6 +138,73 @@ class FirebaseService:
             # Don't raise - analytics failure should never break the API
             logger.error(f"Failed to log analytics to Firestore: {e}", exc_info=True)
 
+    async def log_intent(
+        self,
+        driver_id: str,
+        query_text: str,
+        intent: str,
+        session_id: str,
+        interaction_count: int,
+    ):
+        """
+        Log intent query to Firestore for analytics.
+
+        Firestore Path: raahiIntents/{auto_id}
+
+        Document structure:
+        {
+            driver_id: "driver_123",
+            query_text: "User's query",
+            intent: "GENERIC",
+            timestamp: <Firestore timestamp>,
+            session_id: "uuid",
+            interaction_count: 3
+        }
+
+        Args:
+            driver_id: Driver ID from driver_profile
+            query_text: User's original query text
+            intent: Detected intent type (e.g., "GENERIC", "GET_DUTIES")
+            session_id: Session ID for tracking conversation
+            interaction_count: Number of interactions in this session
+        """
+        if not settings.enable_analytics_logging:
+            logger.debug("Analytics logging disabled via config")
+            return
+
+        if not self._initialized or not self._client:
+            logger.warning("Firebase not initialized - skipping intent logging")
+            return
+
+        try:
+            # Prepare intent log document (includes driver_id as field)
+            doc_data = {
+                "driver_id": driver_id,
+                "query_text": query_text,
+                "intent": intent,
+                "timestamp": datetime.utcnow(),
+                "session_id": session_id,
+                "interaction_count": interaction_count,
+            }
+
+            # Write to Firestore using thread pool (top-level collection)
+            def _write_to_firestore():
+                """Synchronous Firestore write operation."""
+                return self._client.collection("raahiIntents").add(doc_data)
+
+            # Run sync operation in thread pool to avoid blocking
+            update_time, doc_ref = await asyncio.to_thread(_write_to_firestore)
+
+            logger.info(
+                f"Intent logged: driver={driver_id}, "
+                f"query='{query_text[:50]}...', intent={intent} | "
+                f"Doc ID: {doc_ref.id} | Path: raahiIntents/{doc_ref.id}"
+            )
+
+        except Exception as e:
+            # Don't raise - analytics failure should never break the API
+            logger.error(f"Failed to log intent to Firestore: {e}", exc_info=True)
+
 
 # Singleton instance
 _firebase_service: Optional[FirebaseService] = None
