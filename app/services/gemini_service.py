@@ -45,6 +45,13 @@ IMPORTANT: You must respond in valid JSON format with these fields:
 - response_text: A friendly, concise response in ENGLISH to speak to the driver (keep it brief, 1-2 sentences)
 - extracted_params: Any extracted parameters like city names, routes, etc.
 
+CRITICAL RULE FOR MULTIPLE DESTINATION CITIES:
+When user mentions MULTIPLE destination cities (e.g., "Pune, Nashik, Aligarh" or "Pune and Nashik"), you MUST extract ONLY the FIRST city as "to_city" in extracted_params. Ignore all other cities.
+Examples:
+- "Mumbai to Pune, Nashik, Aligarh" → to_city = "Pune" (NOT "Pune, Nashik, Aligarh")
+- "Delhi to Jaipur and Udaipur" → to_city = "Jaipur" (NOT "Jaipur and Udaipur")
+- "Bangalore se Chennai, Hyderabad" → to_city = "Chennai"
+
 Context about the driver will be provided. Use it to give personalized responses.
 
 Examples (showing multilingual input with English responses):
@@ -53,6 +60,12 @@ Response: {"intent": "get_duties", "ui_action": "show_duties_list", "response_te
 
 User: "Find me a duty from Delhi to Mumbai"
 Response: {"intent": "get_duties", "ui_action": "show_duties_list", "response_text": "Looking for available duties from Delhi to Mumbai.", "extracted_params": {"from_city": "Delhi", "to_city": "Mumbai"}}
+
+User: "Mumbai se Pune, Nashik, Aligarh ka duty chahiye"
+Response: {"intent": "get_duties", "ui_action": "show_duties_list", "response_text": "Looking for available duties from Mumbai to Pune.", "extracted_params": {"from_city": "Mumbai", "to_city": "Pune"}}
+
+User: "Delhi to Jaipur and Udaipur"
+Response: {"intent": "get_duties", "ui_action": "show_duties_list", "response_text": "Looking for available duties from Delhi to Jaipur.", "extracted_params": {"from_city": "Delhi", "to_city": "Jaipur"}}
 
 User: "mumbai"
 Response: {"intent": "get_duties", "ui_action": "show_duties_list", "response_text": "Looking for duties from Mumbai.", "extracted_params": {"from_city": "Mumbai"}}
@@ -162,14 +175,12 @@ class GeminiService:
         )
         self._sessions: dict[str, list[Content]] = {}
 
-    def _build_context(
-        self, driver_profile: DriverProfile, location: Location
-    ) -> str:
+    def _build_context(self, driver_profile: DriverProfile, location: Location) -> str:
         """Build context string from driver profile and location."""
         return f"""
 Driver Context:
 - Name: {driver_profile.name}
-- Vehicle: {driver_profile.vehicle_type or 'Not set'} ({driver_profile.vehicle_number or 'Not set'})
+- Vehicle: {driver_profile.vehicle_type or "Not set"} ({driver_profile.vehicle_number or "Not set"})
 - Current Location: ({location.latitude}, {location.longitude})
 """
 
@@ -183,14 +194,14 @@ Driver Context:
     ) -> IntentResult:
         """
         Classify user intent and generate response using Gemini.
-        
+
         Args:
             user_text: The transcribed text from user's speech (can be in any language)
             driver_profile: Driver's profile information
             location: Current GPS location
             session_id: Optional session ID for conversation context
             preferred_language: Language preference (deprecated - all responses are in English)
-            
+
         Returns:
             IntentResult with classified intent, response (in English), and UI action
         """
@@ -208,7 +219,7 @@ Driver Context:
 
             # Parse the JSON response
             response_text = response.text.strip()
-            
+
             # Handle markdown code blocks if present
             if response_text.startswith("```"):
                 lines = response_text.split("\n")
@@ -219,10 +230,12 @@ Driver Context:
             # Update session history
             if session_id:
                 self._sessions[session_id] = chat.history
-            
+
             return IntentResult(
                 intent=IntentType(parsed.get("intent", "generic")),
-                response_text=parsed.get("response_text", "I didn't understand. Can you say that again?"),
+                response_text=parsed.get(
+                    "response_text", "I didn't understand. Can you say that again?"
+                ),
                 ui_action=UIAction(parsed.get("ui_action", "none")),
                 data={"extracted_params": parsed.get("extracted_params", {})},
             )
